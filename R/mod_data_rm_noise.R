@@ -1,0 +1,455 @@
+#' Remove Noise UI Module
+#'
+#' @param id Module id.
+#' @noRd
+#' @import shiny
+#' @import bslib
+#' @importFrom bsicons bs_icon
+#' @importFrom shinyjs useShinyjs toggle hidden
+#' @importFrom shinyWidgets switchInput
+mod_data_rm_noise_ui <- function(id) {
+  ns <- NS(id)
+
+  tagList(
+    shinyjs::useShinyjs(),
+
+    bslib::page_fluid(
+      class = "p-0",
+      bslib::layout_sidebar(
+        fillable = FALSE,
+        padding = 0,
+
+        # --- Sidebar: Global Parameters ---
+        sidebar = bslib::sidebar(
+          title = "Noise Removal Settings",
+          width = 350,
+          bg = "#f8f9fa",
+
+          # 1. Grouping Column
+          selectInput(ns("noise_tag"), "Group Samples By:",
+                      choices = NULL, # To be filled server-side
+                      selected = "class"),
+          helpText("Column used to group samples (e.g., 'class', 'group'). QC samples are identified by 'class=QC'."),
+
+          tags$hr(),
+
+          # 2. MV Thresholds
+          tags$h6(class="fw-bold text-secondary", "1. MV Filter Parameters"),
+          numericInput(ns("qc_na_freq"), "QC Missing Ratio Threshold <", value = 0.2, min = 0, max = 1, step = 0.05),
+          numericInput(ns("s_na_freq"), "Group Missing Ratio Threshold <", value = 0.5, min = 0, max = 1, step = 0.05),
+
+          tags$div(class="text-muted small mb-3",
+                   "Note: Features are KEPT if (QC_MV <= Threshold) AND (At least one Group_MV <= Threshold)."),
+
+          tags$hr(),
+
+          # 3. RSD Setting
+          tags$h6(class="fw-bold text-secondary", "2. RSD Filter (QC)"),
+          checkboxInput(ns("rm_noise_rsd"), "Apply RSD Filter", value = TRUE),
+          conditionalPanel(
+            condition = sprintf("input['%s'] == true", ns("rm_noise_rsd")),
+            numericInput(ns("qc_rsd"), "QC RSD Threshold (%) <", value = 30, min = 0, max = 100, step = 5),
+            helpText("Features with RSD in QC samples higher than this value will be removed.")
+          ),
+
+          tags$hr(),
+          actionButton(ns("run_cleaning"), "Run Noise Removal", icon = icon("play"), class = "btn-teal w-100 fw-bold shadow-sm")
+        ),
+
+        # --- Main Content ---
+        div(class = "p-3",
+
+            # 1. Summary Section (Updated to match project_init style)
+            tags$h5(class="text-primary fw-bold mb-3", bsicons::bs_icon("clipboard-data"), " Cleaning Summary"),
+            bslib::layout_columns(
+              col_widths = c(6, 6),
+              bslib::card(
+                bslib::card_header("Positive Mode Log", class = "bg-info-subtle text-info-emphasis"),
+                # MassDataset Summary
+                verbatimTextOutput(ns("res_pos_mod"), placeholder = TRUE),
+                # Removed Features Detail
+                tags$div(class="mt-3",
+                         tags$label("Removed Noise Features:", class="form-label text-muted fw-bold"),
+                         verbatimTextOutput(ns("noise_detail_pos"), placeholder = TRUE)
+                ),
+                style = "min-height: 250px;"
+              ),
+              bslib::card(
+                bslib::card_header("Negative Mode Log", class = "bg-warning-subtle text-warning-emphasis"),
+                # MassDataset Summary
+                verbatimTextOutput(ns("res_neg_mod"), placeholder = TRUE),
+                # Removed Features Detail
+                tags$div(class="mt-3",
+                         tags$label("Removed Noise Features:", class="form-label text-muted fw-bold"),
+                         verbatimTextOutput(ns("noise_detail_neg"), placeholder = TRUE)
+                ),
+                style = "min-height: 250px;"
+              )
+            ),
+
+            br(),
+
+            # 2. Comparison Plots (Revised Structure with Full Screen)
+            bslib::layout_column_wrap(
+              width = 1/2,
+              heights_equal = "row",
+
+              # --- Positive Mode Card ---
+              bslib::card(
+                height = "650px",
+                full_screen = TRUE, # Added full_screen
+                bslib::card_header(bsicons::bs_icon("graph-up"), " Positive Mode: MV Distribution"),
+                bslib::layout_sidebar(
+                  fillable = TRUE,
+                  sidebar = bslib::sidebar(
+                    width = 250,
+                    open = FALSE, # Collapsed by default
+                    bg = "#f8f9fa",
+                    title = "Plot Controls",
+
+                    # 1. Interactive Switch
+                    shinyWidgets::switchInput(inputId = ns("pos_interactive"), label = "Interactive", size = "small", inline = TRUE, labelWidth = "80px"),
+                    tags$hr(),
+
+                    # 2. Plot Aesthetics
+                    selectInput(ns("pos_color"), "Color By", choices = NULL),
+                    selectInput(ns("pos_order"), "Order By", choices = NULL),
+                    checkboxInput(ns("pos_pct"), "Show Percentage", value = TRUE),
+                    tags$hr(),
+
+                    # 3. Download Params
+                    numericInput(ns("pos_w"), "Width (in)", value = 10, min = 4),
+                    numericInput(ns("pos_h"), "Height (in)", value = 8, min = 4),
+                    downloadButton(ns("dl_plot_pos"), "Download PDF", class = "btn-sm btn-outline-primary w-100")
+                  ),
+                  # Main Plot Area
+                  uiOutput(ns("ui_pos_plots"))
+                )
+              ),
+
+              # --- Negative Mode Card ---
+              bslib::card(
+                height = "650px",
+                full_screen = TRUE, # Added full_screen
+                bslib::card_header(bsicons::bs_icon("graph-up"), " Negative Mode: MV Distribution"),
+                bslib::layout_sidebar(
+                  fillable = TRUE,
+                  sidebar = bslib::sidebar(
+                    width = 250,
+                    open = FALSE,
+                    bg = "#f8f9fa",
+                    title = "Plot Controls",
+
+                    # 1. Interactive Switch
+                    shinyWidgets::switchInput(inputId = ns("neg_interactive"), label = "Interactive", size = "small", inline = TRUE, labelWidth = "80px"),
+                    tags$hr(),
+
+                    # 2. Plot Aesthetics
+                    selectInput(ns("neg_color"), "Color By", choices = NULL),
+                    selectInput(ns("neg_order"), "Order By", choices = NULL),
+                    checkboxInput(ns("neg_pct"), "Show Percentage", value = TRUE),
+                    tags$hr(),
+
+                    # 3. Download Params
+                    numericInput(ns("neg_w"), "Width (in)", value = 10, min = 4),
+                    numericInput(ns("neg_h"), "Height (in)", value = 8, min = 4),
+                    downloadButton(ns("dl_plot_neg"), "Download PDF", class = "btn-sm btn-outline-primary w-100")
+                  ),
+                  # Main Plot Area
+                  uiOutput(ns("ui_neg_plots"))
+                )
+              )
+            )
+        )
+      ),
+
+      if(exists("metminer_footer")) metminer_footer() else tags$div()
+    )
+  )
+}
+
+#' Remove Noise Server Module
+#'
+#' @param id Module id.
+#' @param global_data A reactiveValues object containing 'object_pos_raw' etc.
+#' @param prj_init Project init reactive object (for resuming tasks)
+#' @noRd
+mod_data_rm_noise_server <- function(id, global_data, prj_init) {
+  moduleServer(id, function(input, output, session) {
+    ns <- session$ns
+
+    # --- 1. Helpers with Resume Check ---
+    get_init_obj <- function(mode = c("positive", "negative")) {
+      mode <- match.arg(mode)
+      if(mode == "positive") {
+        if(!is.null(global_data$object_pos_raw)) return(global_data$object_pos_raw)
+        if(!is.null(prj_init$object_positive.init)) return(prj_init$object_positive.init)
+        return(NULL)
+      } else {
+        if(!is.null(global_data$object_neg_raw)) return(global_data$object_neg_raw)
+        if(!is.null(prj_init$object_negative.init)) return(prj_init$object_negative.init)
+        return(NULL)
+      }
+    }
+
+    # Store removed noise count
+    noise_info <- reactiveValues(
+      pos_count = NULL,
+      neg_count = NULL
+    )
+
+    # --- 2. Update UI (Choices) ---
+    observe({
+      obj <- get_init_obj("positive")
+      if(!is.null(obj)) {
+        info <- massdataset::extract_sample_info(obj)
+        cols <- colnames(info)
+
+        # Valid columns for Coloring (Discrete usually)
+        color_cols <- setdiff(cols, c("sample_id", "raw_file_name"))
+        # Valid columns for Ordering (Can be anything)
+        order_cols <- cols
+
+        # 1. Update Global Cleaning Group
+        updateSelectInput(session, "noise_tag", choices = color_cols, selected = "class")
+
+        # 2. Update Positive Plot Controls
+        updateSelectInput(session, "pos_color", choices = color_cols, selected = "class")
+        # Prefer injection.order, fallback to sample_id
+        def_order <- if("injection.order" %in% order_cols) "injection.order" else "sample_id"
+        updateSelectInput(session, "pos_order", choices = order_cols, selected = def_order)
+
+        # 3. Update Negative Plot Controls
+        updateSelectInput(session, "neg_color", choices = color_cols, selected = "class")
+        updateSelectInput(session, "neg_order", choices = order_cols, selected = def_order)
+      }
+    })
+
+    # --- 3. Cleaning Logic Pipeline ---
+    do_cleaning_pipeline <- function(object, tag, qc_na_freq, s_na_freq, do_rsd, rsd_cut, polarity_name) {
+      if(is.null(object)) return(NULL)
+
+      # 1. Metadata
+      sample_info <- massdataset::extract_sample_info(object)
+      if(tag == "class") {
+        group_vector <- sample_info$class
+      } else {
+        if(!tag %in% colnames(sample_info)) stop(paste("Column", tag, "not found"))
+        group_vector <- ifelse(sample_info$class == "QC", "QC", as.character(sample_info[[tag]]))
+      }
+      unique_groups <- unique(group_vector)
+      expression_data <- massdataset::extract_expression_data(object)
+
+      # 2. MV Filtering
+      # A. QC Check
+      qc_idx <- which(group_vector == "QC")
+      if(length(qc_idx) > 0) {
+        qc_na_ratios <- rowMeans(is.na(expression_data[, qc_idx, drop=FALSE]))
+      } else {
+        qc_na_ratios <- rep(0, nrow(expression_data))
+      }
+
+      # B. Group Check
+      non_qc_groups <- setdiff(unique_groups, "QC")
+      if(length(non_qc_groups) > 0) {
+        group_pass_list <- lapply(non_qc_groups, function(grp) {
+          g_idx <- which(group_vector == grp)
+          if(length(g_idx) == 0) return(rep(FALSE, nrow(expression_data)))
+          g_na_ratios <- rowMeans(is.na(expression_data[, g_idx, drop=FALSE]))
+          return(g_na_ratios <= s_na_freq)
+        })
+        any_group_pass <- Reduce(`|`, group_pass_list)
+      } else {
+        any_group_pass <- rep(TRUE, nrow(expression_data))
+      }
+
+      keep_mv <- (qc_na_ratios <= qc_na_freq) & any_group_pass
+      keep_mv[is.na(keep_mv)] <- FALSE
+
+      keep_indices <- which(unname(keep_mv))
+      if(length(keep_indices) == 0) {
+        showNotification(paste("Warning:", polarity_name, "mode: No features kept after MV filter."), type="warning")
+        return(NULL)
+      }
+      object_filtered <- object[keep_indices, ]
+
+      # 3. RSD Filtering (Using massdataset::mutate_rsd)
+      if(do_rsd) {
+        s_info_curr <- massdataset::extract_sample_info(object_filtered)
+        qc_ids <- s_info_curr %>% dplyr::filter(class == "QC") %>% dplyr::pull(sample_id)
+
+        if(length(qc_ids) > 1) {
+          object_filtered <- massdataset::mutate_rsd(object_filtered, according_to_samples = qc_ids)
+          object_filtered <- object_filtered %>%
+            massdataset::activate_mass_dataset(what = "variable_info") %>%
+            dplyr::filter(rsd < rsd_cut)
+        }
+      }
+      return(object_filtered)
+    }
+
+    # --- 4. Execution ---
+    observeEvent(input$run_cleaning, {
+      # CHECK FOR DATA EXISTENCE
+      pos_raw <- get_init_obj("positive")
+      neg_raw <- get_init_obj("negative")
+
+      # FIX: Check if BOTH are null (allow single mode)
+      if(is.null(pos_raw) && is.null(neg_raw)) {
+        shinyalert::shinyalert(
+          title = "Data Missing",
+          text = "No mass_dataset objects found (Positive or Negative). Please ensure data is available from previous steps.",
+          type = "error"
+        )
+        return()
+      }
+
+      shinyjs::disable("run_cleaning")
+      progress <- shiny::Progress$new()
+      progress$set(message = "Removing Noise...", value = 0)
+      on.exit({
+        progress$close()
+        shinyjs::enable("run_cleaning")
+      })
+
+      tryCatch({
+        tag <- input$noise_tag
+        qc_cut <- input$qc_na_freq
+        s_cut <- input$s_na_freq
+        do_rsd <- input$rm_noise_rsd
+        rsd_cut <- input$qc_rsd
+
+        # Positive
+        if(!is.null(pos_raw)){
+          progress$inc(0.2, detail = "Processing Positive Mode...")
+          pos_clean <- do_cleaning_pipeline(pos_raw, tag, qc_cut, s_cut, do_rsd, rsd_cut, "Positive")
+          global_data$object_pos_clean <- pos_clean
+
+          if(!is.null(pos_clean)) {
+            noise_info$pos_count <- nrow(pos_raw) - nrow(pos_clean)
+
+            # Save Object (02.object_pos_mv.rda)
+            object_pos_mv <- pos_clean
+            save(object_pos_mv, file = file.path(prj_init$mass_dataset_dir, "02.object_pos_mv.rda"))
+          }
+        }
+
+        # Negative
+        if(!is.null(neg_raw)){
+          progress$inc(0.4, detail = "Processing Negative Mode...")
+          neg_clean <- do_cleaning_pipeline(neg_raw, tag, qc_cut, s_cut, do_rsd, rsd_cut, "Negative")
+          global_data$object_neg_clean <- neg_clean
+
+          if(!is.null(neg_clean)) {
+            noise_info$neg_count <- nrow(neg_raw) - nrow(neg_clean)
+
+            # Save Object (02.object_neg_mv.rda)
+            object_neg_mv <- neg_clean
+            save(object_neg_mv, file = file.path(prj_init$mass_dataset_dir, "02.object_neg_mv.rda"))
+          }
+        }
+
+        showNotification("Data cleaning completed successfully!", type = "success")
+      }, error = function(e) {
+        showNotification(paste("Error:", e$message), type = "error")
+      })
+    })
+
+    # --- 5. Plots & UI Logic ---
+
+    # Internal plot generator with custom params
+    generate_mv_plot <- function(obj, title_suffix, color_by, order_by, pct) {
+      if(is.null(obj)) return(NULL)
+      # Validate inputs
+      if(is.null(color_by) || color_by == "") color_by <- "class"
+      if(is.null(order_by) || order_by == "") order_by <- "sample_id"
+
+      p <- massdataset::show_sample_missing_values(
+        obj,
+        color_by = color_by,
+        order_by = order_by,
+        percentage = pct
+      )
+
+      p <- p + ggplot2::ggtitle(title_suffix) +
+        ggplot2::theme(axis.text.x = ggplot2::element_blank(), axis.ticks.x = ggplot2::element_blank())
+      return(p)
+    }
+
+    # > Positive Mode UI
+    output$ui_pos_plots <- renderUI({
+      bslib::layout_columns(
+        col_widths = c(6, 6),
+        if(input$pos_interactive) plotly::plotlyOutput(ns("ply_pos_before")) else plotOutput(ns("plt_pos_before")),
+        if(input$pos_interactive) plotly::plotlyOutput(ns("ply_pos_after")) else plotOutput(ns("plt_pos_after"))
+      )
+    })
+
+    # > Negative Mode UI
+    output$ui_neg_plots <- renderUI({
+      bslib::layout_columns(
+        col_widths = c(6, 6),
+        if(input$neg_interactive) plotly::plotlyOutput(ns("ply_neg_before")) else plotOutput(ns("plt_neg_before")),
+        if(input$neg_interactive) plotly::plotlyOutput(ns("ply_neg_after")) else plotOutput(ns("plt_neg_after"))
+      )
+    })
+
+    # > Rendering Positive (Passing specific POS inputs)
+    # Static
+    output$plt_pos_before <- renderPlot({ req(get_init_obj("positive")); generate_mv_plot(get_init_obj("positive"), "Before (Raw)", input$pos_color, input$pos_order, input$pos_pct) })
+    output$plt_pos_after <- renderPlot({ req(global_data$object_pos_clean); generate_mv_plot(global_data$object_pos_clean, "After (Clean)", input$pos_color, input$pos_order, input$pos_pct) })
+    # Interactive
+    output$ply_pos_before <- plotly::renderPlotly({ req(get_init_obj("positive")); plotly::ggplotly(generate_mv_plot(get_init_obj("positive"), "Before (Raw)", input$pos_color, input$pos_order, input$pos_pct)) })
+    output$ply_pos_after <- plotly::renderPlotly({ req(global_data$object_pos_clean); plotly::ggplotly(generate_mv_plot(global_data$object_pos_clean, "After (Clean)", input$pos_color, input$pos_order, input$pos_pct)) })
+
+    # > Rendering Negative (Passing specific NEG inputs)
+    # Static
+    output$plt_neg_before <- renderPlot({ req(get_init_obj("negative")); generate_mv_plot(get_init_obj("negative"), "Before (Raw)", input$neg_color, input$neg_order, input$neg_pct) })
+    output$plt_neg_after <- renderPlot({ req(global_data$object_neg_clean); generate_mv_plot(global_data$object_neg_clean, "After (Clean)", input$neg_color, input$neg_order, input$neg_pct) })
+    # Interactive
+    output$ply_neg_before <- plotly::renderPlotly({ req(get_init_obj("negative")); plotly::ggplotly(generate_mv_plot(get_init_obj("negative"), "Before (Raw)", input$neg_color, input$neg_order, input$neg_pct)) })
+    output$ply_neg_after <- plotly::renderPlotly({ req(global_data$object_neg_clean); plotly::ggplotly(generate_mv_plot(global_data$object_neg_clean, "After (Clean)", input$neg_color, input$neg_order, input$neg_pct)) })
+
+    # --- 6. Result Summary ---
+    output$res_pos_mod <- check_massdata_info(reactive(global_data$object_pos_clean), "positive")
+    output$res_neg_mod <- check_massdata_info(reactive(global_data$object_neg_clean), "negative")
+
+    # Removed Feature Counts
+    output$noise_detail_pos <- renderText({
+      if(is.null(noise_info$pos_count)) return("Not run yet.")
+      paste(noise_info$pos_count, "features removed.")
+    })
+
+    output$noise_detail_neg <- renderText({
+      if(is.null(noise_info$neg_count)) return("Not run yet.")
+      paste(noise_info$neg_count, "features removed.")
+    })
+
+    # --- 7. Downloads ---
+    # Positive Download
+    output$dl_plot_pos <- downloadHandler(
+      filename = function() { paste0("noise_removal_pos_", Sys.Date(), ".pdf") },
+      content = function(file) {
+        p1 <- generate_mv_plot(get_init_obj("positive"), "Before", input$pos_color, input$pos_order, input$pos_pct)
+        p2 <- generate_mv_plot(global_data$object_pos_clean, "After", input$pos_color, input$pos_order, input$pos_pct)
+        if(!is.null(p1) && !is.null(p2)) {
+          p <- patchwork::wrap_plots(p1, p2, ncol = 2)
+          ggplot2::ggsave(file, p, width = input$pos_w, height = input$pos_h)
+        }
+      }
+    )
+
+    # Negative Download
+    output$dl_plot_neg <- downloadHandler(
+      filename = function() { paste0("noise_removal_neg_", Sys.Date(), ".pdf") },
+      content = function(file) {
+        p1 <- generate_mv_plot(get_init_obj("negative"), "Before", input$neg_color, input$neg_order, input$neg_pct)
+        p2 <- generate_mv_plot(global_data$object_neg_clean, "After", input$neg_color, input$neg_order, input$neg_pct)
+        if(!is.null(p1) && !is.null(p2)) {
+          p <- patchwork::wrap_plots(p1, p2, ncol = 2)
+          ggplot2::ggsave(file, p, width = input$neg_w, height = input$neg_h)
+        }
+      }
+    )
+  })
+}

@@ -1,0 +1,7 @@
+.text-wrap {
+  color: green;
+  font-size: 14px;
+  font-style: italic;
+  width: 100%;
+  word-wrap: break-word;
+}
