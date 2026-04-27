@@ -6,6 +6,9 @@
 \usage{
 check_ms1_structure(path)
 }
+\arguments{
+\item{path}{Directory containing raw MS1 data folders.}
+}
 \description{
 Helper to check directory structure for Raw Import
 }

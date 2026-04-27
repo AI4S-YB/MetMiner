@@ -269,7 +269,7 @@ mod_data_import_ui <- function(id) {
 #' @importFrom magrittr %>%
 #' @importFrom ggplot2 ggplot ggtitle theme element_text element_rect annotate theme_void ggsave
 #' @importFrom patchwork wrap_plots plot_annotation
-#' @importFrom utils write.csv
+#' @importFrom utils head read.csv unzip write.csv
 mod_data_import_server <- function(id, prj_init, global_data, logger = NULL) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns

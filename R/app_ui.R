@@ -12,60 +12,60 @@ app_ui <- function(request) {
     # Leave this function for adding external resources
     golem_add_external_resources(),
 
-    # 启用 bslib 的主题
+    # Enable the bslib theme.
     bslib::page_navbar(
-      # --- 1. 修正标题区域 ---
-      # 加上 vertical-align: middle 确保与菜单项基线对齐
+      # --- 1. Title area ---
+      # Keep the brand and nav items aligned on the same baseline.
       title = tags$span(
         "MetMiner",
-        # 添加下标版本号
+        # Add the version as a subscript.
         tags$sub("version 2.0.0",
                  style = "font-size: 0.75rem; color: #6c757d; font-weight: normal; margin-left: 5px; letter-spacing: 0;"),
         class = "fw-bold",
         style = "font-size: 1.6rem; color: #008080; letter-spacing: -0.5px; vertical-align: middle;"
       ),
 
-      # --- 2. 优化主题 ---
+      # --- 2. Theme ---
       theme = bslib::bs_theme(
         version = 5,
         bootswatch = "zephyr",
         primary = "#008080",
-        "navbar-bg" = "#ffffff", # 纯白背景
+        "navbar-bg" = "#ffffff",
         base_font = font_google("Inter"),
         heading_font = font_google("Plus Jakarta Sans"),
-        # 增加一点 navbar 的高度，让内容呼吸感更好，同时垂直居中更容易
+        # Give navbar content a little more breathing room.
         "navbar-padding-y" = "0.8rem"
       ),
 
-      # 这是一个小技巧：强制修正 navbar items 的对齐
+      # Keep navbar items vertically aligned.
       header = tags$style(HTML("
         .navbar-nav .nav-link {
             font-weight: 500;
             font-size: 1.05rem;
             display: flex;
-            align-items: center; /* 确保文字垂直居中 */
+            align-items: center;
             height: 100%;
         }
-        /* 选中状态下加一个底部边框，像你截图里的 Home 下划线 */
+        /* Active nav item underline. */
         .navbar-nav .nav-link.active {
             color: #008080 !important;
             border-bottom: 3px solid #008080;
-            margin-bottom: -3px; /* 防止布局跳动 */
+            margin-bottom: -3px;
         }
       ")),
 
-      # --- 3. 导航菜单 ---
+      # --- 3. Navigation ---
       bslib::nav_panel("Home", mod_homepage_ui("home_1")),
 
       bslib::nav_panel(
         title = "Project Init",
-        # 直接调用模块，让模块内部的 page_fluid 接管整个宽度
+        # The module owns its internal page width.
         mod_project_init_ui("project_init_1")
       ),
 
       bslib::nav_panel(
         title = "Data import",
-        # 直接调用模块，让模块内部的 page_fluid 接管整个宽度
+        # The module owns its internal page width.
         mod_data_import_ui("data_import_1")
       ),
 
@@ -75,7 +75,8 @@ app_ui <- function(request) {
         bslib::nav_panel("Remove Noise", mod_data_rm_noise_ui('data_rm_noise_1')),
         bslib::nav_panel("Outlier Detection", mod_data_outlier_ui('data_outlier_1')),
         bslib::nav_panel("Imputation", mod_data_impute_ui('data_imputation_1')),
-        bslib::nav_panel("Normalization", mod_data_norm_ui('data_norm_1'))
+        bslib::nav_panel("Normalization", mod_data_norm_ui('data_norm_1')),
+        bslib::nav_panel("Feature Network", mod_feature_network_ui('feature_network_1'))
       ),
 
       bslib::nav_menu(
@@ -88,17 +89,17 @@ app_ui <- function(request) {
         bslib::nav_panel("Enrichment", div(class="p-4", "Placeholder"))
       ),
 
-      # --- 4. 右侧 GitHub 按钮优化 ---
-      bslib::nav_spacer(), # 推到最右侧
+      # --- 4. GitHub link ---
+      bslib::nav_spacer(),
 
       bslib::nav_item(
         tags$a(
-          # 使用 btn-outline 样式，更加精致
+          # Use an outline button style for a quieter navbar action.
           class = "btn btn-outline-secondary d-flex align-items-center gap-2",
           style = "padding: 0.375rem 0.75rem; border-color: #dee2e6;",
           href = "https://github.com/ShawnWx2019/MetMiner",
           target = "_blank",
-          # 确保图标和文字对齐
+          # Keep icon and text aligned.
           bsicons::bs_icon("github", size = "1.1rem"),
           span("GitHub", style = "font-size: 0.95rem;")
         )

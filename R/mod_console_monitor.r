@@ -135,7 +135,11 @@ mod_console_monitor_server <- function(id, global_log) {
 }
 
 #' Helper to append log
+#'
 #' Call this function from anywhere in your app to log to the console widget.
+#'
+#' @param msg Message to log.
+#' @param type Log type, such as `"info"`, `"warning"`, or `"error"`.
 #' @export
 app_log <- function(msg, type = "info") {
   # This function needs to access the global reactive value.

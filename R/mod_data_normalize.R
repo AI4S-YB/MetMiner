@@ -244,6 +244,7 @@ mod_data_norm_ui <- function(id) {
 #' @param global_data ReactiveValues. Expects `object_pos_impute` and `object_neg_impute`.
 #' @param prj_init Project init reactive object (for resuming tasks).
 #' @noRd
+#' @importFrom utils head
 mod_data_norm_server <- function(id, global_data, prj_init) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns

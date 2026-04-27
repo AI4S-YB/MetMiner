@@ -6,6 +6,7 @@
 #' @param QC_num.n List of QC files (NEG)
 #' @param S_num.n List of Subject files (NEG)
 #' @param sample_info_temp Sample info dataframe
+#' @importFrom utils head
 #' @export
 validate_sample_files <- function(mode = "POS", QC_num.p, S_num.p, QC_num.n, S_num.n, sample_info_temp) {
   qc_files <- if (mode == "POS") QC_num.p else QC_num.n
@@ -38,6 +39,8 @@ validate_sample_files <- function(mode = "POS", QC_num.p, S_num.p, QC_num.n, S_n
 }
 
 #' Helper to check directory structure for Raw Import
+#'
+#' @param path Directory containing raw MS1 data folders.
 #' @export
 check_ms1_structure <- function(path) {
   dir_pos <- dir.exists(file.path(path, "POS"))

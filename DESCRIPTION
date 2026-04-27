@@ -7,20 +7,37 @@ Authors@R:
            role = c("aut", "cre"),
            email = "your@email.com")
 Description: What the package does (one paragraph).
-License: What license is it under?
+License: MIT + file LICENSE
 Imports: 
     bsicons,
     bslib,
     config,
     dashboardthemes,
+    DT,
     dplyr,
+    furrr,
+    future,
     ggplot2,
     golem,
-    RCurl,
+    igraph,
+    magrittr,
+    masscleaner,
+    massdataset,
+    massprocesser,
+    massqc,
+    MSnbase,
+    patchwork,
+    plotly,
+    quarto,
+    rmarkdown,
     shiny,
-    shinyFiles,
+    shinyalert,
+    shinyjs,
+    shinyWidgets,
     stringr,
-    tidymass
+    tibble,
+    tidyr,
+    visNetwork
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.2

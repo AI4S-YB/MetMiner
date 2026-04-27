@@ -6,6 +6,11 @@
 \usage{
 check_massdata_info(object, mode = c("positive", "negative"))
 }
+\arguments{
+\item{object}{A `mass_dataset` object or a reactive returning one.}
+
+\item{mode}{Ionization mode.}
+}
 \description{
 Generate Formatted Data Summary Report for Shiny
 }

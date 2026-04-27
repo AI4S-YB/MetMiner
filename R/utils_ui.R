@@ -117,7 +117,7 @@ metminer_footer <- function() {
         class = "row align-items-center justify-content-center",
         shiny::div(
           class = "col-md-12",
-          shiny::span(class = "text-muted small", "© 2024-2025 MetMiner | "),
+          shiny::span(class = "text-muted small", "(c) 2024-2025 MetMiner | "),
           shiny::span(class = "text-primary small fw-bold", "State Key Laboratory of Crop Stress Adaptation and Improvement"),
           shiny::br(),
           shiny::span(class = "text-muted small", style="font-size: 0.8rem;", "Henan University, Kaifeng 475004, China")

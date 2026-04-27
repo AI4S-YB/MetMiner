@@ -2,12 +2,15 @@
 % Please edit documentation in R/mod_console_monitor.r
 \name{app_log}
 \alias{app_log}
-\title{Helper to append log
-Call this function from anywhere in your app to log to the console widget.}
+\title{Helper to append log}
 \usage{
 app_log(msg, type = "info")
 }
+\arguments{
+\item{msg}{Message to log.}
+
+\item{type}{Log type, such as `"info"`, `"warning"`, or `"error"`.}
+}
 \description{
-Helper to append log
 Call this function from anywhere in your app to log to the console widget.
 }

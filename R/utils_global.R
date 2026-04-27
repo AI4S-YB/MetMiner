@@ -1,0 +1,15 @@
+utils::globalVariables(c(
+  "Value",
+  "batch",
+  "condition",
+  "ion",
+  "is_outlier",
+  "judge",
+  "key",
+  "object",
+  "ppm",
+  "rsd",
+  "rt",
+  "sample_id",
+  "variable_id"
+))

@@ -138,6 +138,7 @@ mod_data_impute_ui <- function(id) {
 #' @param global_data ReactiveValues. Expects `object_pos_outlier` and `object_neg_outlier`.
 #' @param prj_init Project init reactive object (for resuming tasks).
 #' @noRd
+#' @importFrom utils head
 mod_data_impute_server <- function(id, global_data, prj_init) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns

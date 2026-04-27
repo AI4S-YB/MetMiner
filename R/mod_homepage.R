@@ -225,7 +225,7 @@ mod_homepage_ui <- function(id) {
                     # Citation 1: MetMiner
                     div(class = "citation-card",
                         p(class = "citation-text",
-                          HTML("Wang, X., Liang, S., Yang, W., Yu, K., Liang, F., Zhao, B., Zhu, X., Zhou, C., Mur, L.A.J., Roberts, J.A., Zhang, J., Zhang, X., <strong>2024</strong>. MetMiner: A user-friendly pipeline for large-scale plant metabolomics data analysis. <em>J. Integr. Plant Biol.</em> 66, 2329–2345. <a href='https://doi.org/10.1111/jipb.13774' target='_blank'>https://doi.org/10.1111/jipb.13774</a>")
+                          HTML("Wang, X., Liang, S., Yang, W., Yu, K., Liang, F., Zhao, B., Zhu, X., Zhou, C., Mur, L.A.J., Roberts, J.A., Zhang, J., Zhang, X., <strong>2024</strong>. MetMiner: A user-friendly pipeline for large-scale plant metabolomics data analysis. <em>J. Integr. Plant Biol.</em> 66, 2329-2345. <a href='https://doi.org/10.1111/jipb.13774' target='_blank'>https://doi.org/10.1111/jipb.13774</a>")
                         )
                     ),
                     # Citation 2: TidyMass2
@@ -237,7 +237,7 @@ mod_homepage_ui <- function(id) {
                     # Citation 3: TidyMass
                     div(class = "citation-card",
                         p(class = "citation-text",
-                          HTML("Shen, X., Yan, H., Wang, C., Gao, P., Johnson, C.H., Snyder, M.P., <strong>2022</strong>. TidyMass an object-oriented reproducible analysis framework for LC–MS data. <em>Nat. Commun.</em> 13, 4365. <a href='https://doi.org/10.1038/s41467-022-32155-w' target='_blank'>https://doi.org/10.1038/s41467-022-32155-w</a>")
+                          HTML("Shen, X., Yan, H., Wang, C., Gao, P., Johnson, C.H., Snyder, M.P., <strong>2022</strong>. TidyMass an object-oriented reproducible analysis framework for LC-MS data. <em>Nat. Commun.</em> 13, 4365. <a href='https://doi.org/10.1038/s41467-022-32155-w' target='_blank'>https://doi.org/10.1038/s41467-022-32155-w</a>")
                         )
                     )
                 )
@@ -263,7 +263,7 @@ mod_homepage_ui <- function(id) {
             ),
             tags$hr(style = "border-color: rgba(255,255,255,0.1); margin-top: 2rem;"),
             div(class = "text-center",
-                "© 2024-2025 Prof. Xuebin Zhang's Lab. All rights reserved."
+                "(c) 2024-2025 Prof. Xuebin Zhang's Lab. All rights reserved."
             )
         )
     )

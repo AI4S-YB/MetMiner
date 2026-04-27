@@ -7,6 +7,7 @@
 #' @param th_dist PCA Mahalanobis distance P-value threshold
 #'
 #' @return A data.frame with logical columns: according_to_na, pc_sd, pc_mad, according_to_distance
+#' @importFrom stats cov mahalanobis pchisq prcomp var
 #' @export
 calc_outlier_table <- function(object, th_na, th_sd, th_mad, th_dist) {
   if(is.null(object)) return(NULL)
@@ -161,7 +162,7 @@ process_outliers <- function(object,
     }
   }, error = function(e) {
     return(list(
-      error = paste("Processing failed:", e.message),
+      error = paste("Processing failed:", e$message),
       object = NULL,
       outlier_ids = NULL
     ))

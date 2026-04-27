@@ -90,4 +90,6 @@ app_server <- function(input, output, session) {
   mod_data_impute_server("data_imputation_1", global_data = global_data, prj_init = prj_init)
   # data nrom
   mod_data_norm_server("data_norm_1",global_data = global_data, prj_init = prj_init)
+  # feature relationship network
+  mod_feature_network_server("feature_network_1", global_data = global_data, prj_init = prj_init)
 }

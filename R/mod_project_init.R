@@ -53,14 +53,14 @@ mod_project_init_ui <- function(id) {
       }
     ")),
 
-    # 使用 page_fluid 确保内容有适当的边距
+    # Use page_fluid so the module controls its own spacing.
     bslib::page_fluid(
-      class = "p-0", # 移除默认 padding，实现全宽效果
+      class = "p-0",
 
-      # 主要布局：侧边栏 + 主内容
+      # Main layout: sidebar plus content.
       bslib::layout_sidebar(
-        fillable = FALSE, # 允许内容自然滚动，适合长页面
-        padding = 0,      # 移除 layout_sidebar 自身的默认 padding，完全由内部控制
+        fillable = FALSE,
+        padding = 0,
 
         sidebar = bslib::sidebar(
           title = "Project Settings",
@@ -123,20 +123,20 @@ mod_project_init_ui <- function(id) {
         ),
 
         # --- Main Content Area ---
-        # 这里改为 p-3 (1rem) 甚至 p-2 (0.5rem) 来减少两边的留白
+        # Keep the page compact without crowding the controls.
         div(class = "p-3",
             div(
               class = "d-flex justify-content-between align-items-center mb-3",
               h3("Project Initialization", class = "text-primary fw-bold m-0"),
-              # 初始化按钮
+              # Main initialization action.
               actionButton(ns('action_init'), 'Run Initialization',
                            icon = icon("play"), class = "btn-teal btn-lg shadow-sm")
             ),
 
-            # 使用 utils_ui.R 里的 hr_head
+            # Use the shared heading divider when available.
             if(exists("hr_head")) hr_head() else tags$hr(),
 
-            # 状态显示区
+            # Project status display.
             uiOutput(ns("wd_status")),
             tags$div(class="mb-3",
                      tags$label("Generated Working Directory:", class="form-label text-muted"),
@@ -171,7 +171,7 @@ mod_project_init_ui <- function(id) {
         )
       ),
       # --- Footer ---
-      if(exists("metminer_footer")) metminer_footer() else tags$div("© MetMiner")
+      if(exists("metminer_footer")) metminer_footer() else tags$div("(c) MetMiner")
     )
   )
 }
@@ -183,23 +183,24 @@ mod_project_init_ui <- function(id) {
 #' @noRd
 #' @importFrom shinyalert shinyalert
 #' @importFrom dplyr rename mutate
+#' @importFrom utils read.csv
 mod_project_init_server <- function(id, prj_init) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
     # --- 1. State Management ---
-    wd_generated <- reactiveVal(FALSE)  # 标记路径是否已生成
+    wd_generated <- reactiveVal(FALSE)
 
-    # 随机目录生成逻辑 (MetMiner 版本)
+    # Generate a candidate MetMiner project directory.
     generate_random_path <- function() {
-      base_dir <- path.expand("~/metminer_results") # 确保展开 ~
+      base_dir <- path.expand("~/metminer_results")
       timestamp <- format(Sys.time(), "%Y%m%d")
       rand_str <- paste0(sample(c(letters, 0:9), 6, replace = TRUE), collapse = "")
       folder_name <- paste0("proj_", timestamp, "_", rand_str)
       file.path(base_dir, folder_name)
     }
 
-    # 初始化时生成一个候选路径 (ReactiveVal)
+    # Candidate path shown before the user confirms initialization.
     candidate_path <- reactiveVal(generate_random_path())
 
     # --- 2. UI Updates (Status) ---
@@ -228,9 +229,9 @@ mod_project_init_server <- function(id, prj_init) {
 
     output$generated_wd_path <- renderText({
       if (wd_generated()) {
-        prj_init$wd # 已确认的路径
+        prj_init$wd
       } else {
-        # 显示候选路径，给用户一个预期
+        # Show the candidate path as a preview.
         paste(candidate_path(), "(Preview)")
       }
     })
@@ -238,7 +239,7 @@ mod_project_init_server <- function(id, prj_init) {
     # --- 3. Sample Info Handling ---
     sample_info_raw <- reactive({
       req(input$SampleInfo)
-      # 增加扩展名检查
+      # Validate the uploaded file extension before reading.
       ext <- tools::file_ext(input$SampleInfo$name)
       if (tolower(ext) != "csv") {
         shinyalert::shinyalert("Error", "Invalid file type. Please upload a .csv file.", type = "error")
@@ -255,12 +256,12 @@ mod_project_init_server <- function(id, prj_init) {
       })
     })
 
-    # 修复：确保 CSV 读取成功后更新下拉框
+    # Update mapping inputs after the CSV is read successfully.
     observeEvent(sample_info_raw(), {
       df <- sample_info_raw()
       if (!is.null(df) && ncol(df) > 0) {
         cols <- colnames(df)
-        # 安全地获取默认值，防止越界
+        # Safely pick defaults even if the CSV has fewer columns.
         get_col <- function(idx) if(idx <= length(cols)) cols[idx] else cols[1]
 
         updateSelectInput(session, "sample_id_raw", choices = cols, selected = get_col(1))
@@ -273,7 +274,7 @@ mod_project_init_server <- function(id, prj_init) {
 
     # --- 4. Initialization Logic ---
     observeEvent(input$action_init, {
-      # 防重复点击
+      # Prevent repeated initialization in the same session.
       if (wd_generated()) {
         shinyalert::shinyalert("Already Initialized", "Please refresh the app to start a new project.", type = "warning")
         return()
@@ -285,23 +286,23 @@ mod_project_init_server <- function(id, prj_init) {
       }
 
       tryCatch({
-        # A. 使用候选路径或生成新路径
+        # A. Use the current candidate path.
         full_path <- candidate_path()
 
-        # B. 更新状态
+        # B. Update state.
         wd_generated(TRUE)
 
-        # C. 设置项目变量
+        # C. Store project paths.
         prj_init$wd <- full_path
         prj_init$mass_dataset_dir <- file.path(prj_init$wd, "mass_dataset")
         prj_init$data_export_dir <- file.path(prj_init$wd, "data_export")
 
-        # 创建目录
+        # Create project directories.
         dir.create(prj_init$wd, showWarnings = FALSE, recursive = TRUE)
         dir.create(prj_init$mass_dataset_dir, showWarnings = FALSE, recursive = TRUE)
         dir.create(prj_init$data_export_dir, showWarnings = FALSE, recursive = TRUE)
 
-        # D. 处理 Sample Info
+        # D. Normalize sample information columns.
         prj_init$sample_info <- sample_info_raw() |>
           dplyr::rename(
             "sample_id" = !!input$sample_id_raw,
@@ -316,10 +317,10 @@ mod_project_init_server <- function(id, prj_init) {
           DT::datatable(prj_init$sample_info, options = list(scrollX = TRUE, pageLength = 5))
         })
 
-        # E. 处理 Resuming Task
+        # E. Restore task state when resuming.
         prj_init$steps <- input$init_steps
 
-        # 加载辅助函数
+        # Load optional mass_dataset objects.
         load_object <- function(file_input, label, slot_name) {
           if (!is.null(file_input)) {
             res <- validate_file(file_input$datapath, "Unknown", label)
@@ -337,7 +338,7 @@ mod_project_init_server <- function(id, prj_init) {
         has_pos <- load_object(input$saved_obj_pos, "Positive Object", "object_positive.init")
         has_neg <- load_object(input$saved_obj_neg, "Negative Object", "object_negative.init")
 
-        # F. 加载 DB List (如果需要)
+        # F. Load DB list when resuming annotation filtering.
         if (prj_init$steps == "Annotation filtering" && !is.null(input$saved_dblist)) {
           env_db <- new.env()
           load(input$saved_dblist$datapath, envir = env_db)
@@ -345,20 +346,20 @@ mod_project_init_server <- function(id, prj_init) {
           prj_init$dblist <- get(db_obj_name, envir = env_db)
         }
 
-        # G. 完成提示
+        # G. Report success.
         shinyalert::shinyalert(
           title = "MetMiner Project Initialized!",
           text = "Workspace created successfully. You can now proceed to the next step.",
           type = "success"
         )
 
-        # 禁用按钮防止重复提交
+        # Disable controls to prevent duplicate submission.
         shinyjs::disable("action_init")
         shinyjs::disable("SampleInfo")
 
       }, error = function(e) {
         shinyalert::shinyalert("Initialization Failed", paste("Error:", e$message), type = "error")
-        # 回滚状态
+        # Roll back state if initialization fails.
         wd_generated(FALSE)
       })
     })

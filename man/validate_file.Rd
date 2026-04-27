@@ -6,6 +6,13 @@
 \usage{
 validate_file(path, expected_polarity, object_label)
 }
+\arguments{
+\item{path}{Path to an `.rda` file containing a `mass_dataset` object.}
+
+\item{expected_polarity}{Expected polarity label.}
+
+\item{object_label}{Human-readable label used in error messages.}
+}
 \description{
 Validate mass_dataset file
 }

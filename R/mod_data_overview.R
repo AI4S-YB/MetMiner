@@ -129,6 +129,11 @@ mod_data_overview_ui <- function(id) {
 }
 
 #' Data Overview Server Module
+#'
+#' @param id Module id.
+#' @param global_data ReactiveValues containing imported mass_dataset objects.
+#' @param downloads ReactiveValues used for downloadable report state.
+#' @noRd
 mod_data_overview_server <- function(id, global_data, downloads) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns

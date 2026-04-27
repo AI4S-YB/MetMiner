@@ -1,0 +1,182 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="980" viewBox="0 0 1600 980" role="img" aria-labelledby="title desc">
+  <title id="title">Feature Network Workflow for LC-MS Data Cleaning</title>
+  <desc id="desc">English schematic diagram describing the feature network filtering workflow and implementation model in MetMiner.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f7faf9; }
+      .title { font: 700 34px Arial, Helvetica, sans-serif; fill: #183b3d; }
+      .subtitle { font: 400 18px Arial, Helvetica, sans-serif; fill: #4c6466; }
+      .section-title { font: 700 20px Arial, Helvetica, sans-serif; fill: #163a3c; }
+      .box-title { font: 700 18px Arial, Helvetica, sans-serif; fill: #102f31; }
+      .small-title { font: 700 15px Arial, Helvetica, sans-serif; fill: #102f31; }
+      .body { font: 400 15px Arial, Helvetica, sans-serif; fill: #2f4547; }
+      .small { font: 400 13px Arial, Helvetica, sans-serif; fill: #3f5557; }
+      .tiny { font: 400 12px Arial, Helvetica, sans-serif; fill: #4d6264; }
+      .mono { font: 400 13px "SFMono-Regular", Consolas, monospace; fill: #2f4547; }
+      .panel { fill: #ffffff; stroke: #cbd9d7; stroke-width: 1.6; rx: 8; }
+      .input { fill: #e8f4f2; stroke: #008080; stroke-width: 2; rx: 8; }
+      .process { fill: #eef3fb; stroke: #526fb6; stroke-width: 2; rx: 8; }
+      .rule { fill: #fff7e9; stroke: #d99025; stroke-width: 2; rx: 8; }
+      .store { fill: #edf8ef; stroke: #4b9b57; stroke-width: 2; rx: 8; }
+      .output { fill: #f4eefb; stroke: #8056b3; stroke-width: 2; rx: 8; }
+      .guard { fill: #fff0f0; stroke: #c94f4f; stroke-width: 2; rx: 8; }
+      .arrow { stroke: #52666a; stroke-width: 2.4; fill: none; marker-end: url(#arrowhead); }
+      .arrow-soft { stroke: #8a9a9d; stroke-width: 2; fill: none; marker-end: url(#arrowhead-soft); }
+      .edge-isotope { stroke: #1b9e77; stroke-width: 3; fill: none; marker-end: url(#arrowhead-green); }
+      .edge-adduct { stroke: #7570b3; stroke-width: 3; fill: none; marker-end: url(#arrowhead-purple); }
+      .edge-isf { stroke: #d95f02; stroke-width: 3; fill: none; marker-end: url(#arrowhead-orange); }
+      .node-parent { fill: #008080; stroke: #ffffff; stroke-width: 3; }
+      .node-isotope { fill: #1b9e77; stroke: #ffffff; stroke-width: 3; }
+      .node-adduct { fill: #7570b3; stroke: #ffffff; stroke-width: 3; }
+      .node-isf { fill: #d95f02; stroke: #ffffff; stroke-width: 3; }
+      .node-feature { fill: #7f8c8d; stroke: #ffffff; stroke-width: 3; }
+      .legend-swatch { rx: 4; }
+    </style>
+    <marker id="arrowhead" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#52666a"/>
+    </marker>
+    <marker id="arrowhead-soft" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#8a9a9d"/>
+    </marker>
+    <marker id="arrowhead-green" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#1b9e77"/>
+    </marker>
+    <marker id="arrowhead-purple" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#7570b3"/>
+    </marker>
+    <marker id="arrowhead-orange" markerWidth="12" markerHeight="8" refX="10" refY="4" orient="auto">
+      <path d="M0,0 L12,4 L0,8 Z" fill="#d95f02"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="980"/>
+
+  <text class="title" x="70" y="62">Feature Network Filtering Workflow</text>
+  <text class="subtitle" x="70" y="94">From a normalized mass_dataset to relationship-aware empirical compounds for LC-MS data cleaning</text>
+
+  <rect class="panel" x="60" y="125" width="1480" height="775"/>
+
+  <!-- Main pipeline boxes -->
+  <rect class="input" x="95" y="175" width="250" height="170"/>
+  <text class="box-title" x="120" y="210">1. Input Object</text>
+  <text class="mono" x="120" y="240">mass_dataset</text>
+  <text class="body" x="120" y="270">Normalized LC-MS matrix</text>
+  <text class="small" x="120" y="298">expression_data</text>
+  <text class="small" x="120" y="320">variable_info: ID, m/z, RT</text>
+
+  <rect class="guard" x="405" y="175" width="270" height="170"/>
+  <text class="box-title" x="430" y="210">2. Defensive Checks</text>
+  <text class="body" x="430" y="240">Validate numeric m/z and RT</text>
+  <text class="body" x="430" y="266">Coerce abundance matrix safely</text>
+  <text class="body" x="430" y="292">Reject non-numeric intensity data</text>
+  <text class="small" x="430" y="320">Avoid NA / Inf propagation</text>
+
+  <rect class="process" x="735" y="175" width="280" height="170"/>
+  <text class="box-title" x="760" y="210">3. Candidate Search</text>
+  <text class="body" x="760" y="240">Sort features by RT and m/z</text>
+  <text class="body" x="760" y="266">Use RT window boundaries</text>
+  <text class="body" x="760" y="292">Compare only co-eluting features</text>
+  <text class="small" x="760" y="320">Scales better for large cohorts</text>
+
+  <rect class="rule" x="1075" y="175" width="350" height="170"/>
+  <text class="box-title" x="1100" y="210">4. Relationship Rules</text>
+  <text class="body" x="1100" y="240">Isotope: 1.00335 / z mass gap</text>
+  <text class="body" x="1100" y="266">Adduct: pairwise adduct mass gaps</text>
+  <text class="body" x="1100" y="292">ISF: plant neutral loss dictionary</text>
+  <text class="small" x="1100" y="320">Filtered by RT, m/z error and correlation</text>
+
+  <path class="arrow" d="M345 260 L405 260"/>
+  <path class="arrow" d="M675 260 L735 260"/>
+  <path class="arrow" d="M1015 260 L1075 260"/>
+
+  <!-- Scoring row -->
+  <rect class="process" x="95" y="420" width="360" height="170"/>
+  <text class="box-title" x="120" y="455">5. Evidence Scoring</text>
+  <text class="body" x="120" y="486">Mass error score</text>
+  <text class="body" x="120" y="512">RT co-elution score</text>
+  <text class="body" x="120" y="538">Abundance correlation</text>
+  <text class="body" x="120" y="564">QC ratio stability when QC samples exist</text>
+
+  <rect class="store" x="515" y="420" width="390" height="170"/>
+  <text class="box-title" x="540" y="455">6. feature_network Edge Table</text>
+  <text class="mono" x="540" y="486">from / to</text>
+  <text class="mono" x="540" y="512">type: Isotope, Adduct, ISF</text>
+  <text class="mono" x="540" y="538">annotation, confidence</text>
+  <text class="mono" x="540" y="564">mz_error_ppm, rt_diff, abundance_cor</text>
+
+  <rect class="store" x="965" y="420" width="460" height="170"/>
+  <text class="box-title" x="990" y="455">7. Storage and Graph Model</text>
+  <text class="mono" x="990" y="486">object@other_files$feature_network</text>
+  <text class="body" x="990" y="516">Keeps upstream massdataset compatibility</text>
+  <text class="body" x="990" y="542">Converted to igraph for components</text>
+  <text class="body" x="990" y="568">Rendered by visNetwork for interactive UI</text>
+
+  <path class="arrow" d="M1250 345 C1250 385 275 385 275 420"/>
+  <path class="arrow" d="M455 505 L515 505"/>
+  <path class="arrow" d="M905 505 L965 505"/>
+
+  <!-- Outputs row -->
+  <rect class="output" x="95" y="665" width="360" height="165"/>
+  <text class="box-title" x="120" y="700">8. Network Visualization</text>
+  <text class="body" x="120" y="730">Interactive global network</text>
+  <text class="body" x="120" y="756">Selectable sub-networks</text>
+  <text class="body" x="120" y="782">Node hover text: ID, type, m/z, RT</text>
+  <text class="small" x="120" y="808">Drag nodes, zoom, highlight neighbors</text>
+
+  <rect class="output" x="515" y="665" width="390" height="165"/>
+  <text class="box-title" x="540" y="700">9. Empirical Compound Collapse</text>
+  <text class="body" x="540" y="730">Find connected components</text>
+  <text class="body" x="540" y="756">Use base peak as reference scale</text>
+  <text class="body" x="540" y="782">PC1 captures shared abundance trend</text>
+  <text class="small" x="540" y="808">PC1 is rescaled back to peak area</text>
+
+  <rect class="output" x="965" y="665" width="460" height="165"/>
+  <text class="box-title" x="990" y="700">10. Clean Quantitative Outputs</text>
+  <text class="mono" x="990" y="730">pseudo_area expression profile</text>
+  <text class="mono" x="990" y="756">compound_info</text>
+  <text class="mono" x="990" y="782">feature_mapping</text>
+  <text class="small" x="990" y="808">Reduces redundant features before statistics</text>
+
+  <path class="arrow" d="M1195 590 C1195 630 275 630 275 665"/>
+  <path class="arrow-soft" d="M455 748 L515 748"/>
+  <path class="arrow-soft" d="M905 748 L965 748"/>
+
+  <!-- Mini network inset -->
+  <rect class="panel" x="1115" y="625" width="365" height="245"/>
+  <text class="small-title" x="1135" y="655">Relationship semantics</text>
+
+  <circle class="node-parent" cx="1220" cy="748" r="28"/>
+  <text class="tiny" x="1192" y="795">Parent ion</text>
+
+  <circle class="node-isotope" cx="1330" cy="685" r="22"/>
+  <text class="tiny" x="1300" y="720">Isotope</text>
+
+  <circle class="node-adduct" cx="1390" cy="758" r="22"/>
+  <text class="tiny" x="1365" y="793">Adduct</text>
+
+  <circle class="node-isf" cx="1325" cy="825" r="22"/>
+  <text class="tiny" x="1314" y="860">ISF</text>
+
+  <path class="edge-isotope" d="M1248 733 C1278 710 1295 700 1308 691"/>
+  <path class="edge-adduct" d="M1249 752 C1295 752 1340 754 1368 756"/>
+  <path class="edge-isf" d="M1304 813 C1278 790 1255 771 1243 760"/>
+
+  <text class="tiny" x="1270" y="707">+1.00335/z</text>
+  <text class="tiny" x="1285" y="746">adduct gap</text>
+  <text class="tiny" x="1268" y="812">neutral loss</text>
+
+  <!-- Legend -->
+  <rect class="panel" x="95" y="850" width="900" height="36"/>
+  <rect class="legend-swatch" x="120" y="861" width="18" height="14" fill="#008080"/>
+  <text class="tiny" x="145" y="873">Parent ion</text>
+  <rect class="legend-swatch" x="230" y="861" width="18" height="14" fill="#1b9e77"/>
+  <text class="tiny" x="255" y="873">Natural isotope</text>
+  <rect class="legend-swatch" x="380" y="861" width="18" height="14" fill="#7570b3"/>
+  <text class="tiny" x="405" y="873">Adduct</text>
+  <rect class="legend-swatch" x="485" y="861" width="18" height="14" fill="#d95f02"/>
+  <text class="tiny" x="510" y="873">In-source fragment</text>
+  <rect class="legend-swatch" x="670" y="861" width="18" height="14" fill="#7f8c8d"/>
+  <text class="tiny" x="695" y="873">Unclassified feature</text>
+
+  <text class="tiny" x="1120" y="888">Implementation: R functions + igraph components + visNetwork interaction + mass_dataset-compatible storage</text>
+</svg>

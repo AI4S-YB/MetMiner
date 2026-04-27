@@ -14,6 +14,7 @@
 #' @importFrom furrr future_map_dfr furrr_options
 #' @importFrom MSnbase readMSData mz intensity rtime
 #' @importFrom stats sd median fivenum complete.cases
+#' @importFrom utils head tail
 #' @importFrom dplyr bind_rows
 #' @import ggplot2
 #' @export
