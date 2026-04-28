@@ -727,10 +727,14 @@ detect_mass_difference_edges <- function(variable_info,
   variable_info <- variable_info[order(variable_info$rt, variable_info$mz), , drop = FALSE]
   feature_ids <- as.character(variable_info$variable_id)
   rt_values <- variable_info$rt
+  cor_cache <- build_feature_correlation_cache(expression_data, cor_method)
+  dictionary_mass_difference <- dictionary$mass_difference
+  dictionary_annotation <- dictionary$annotation
   edges <- list()
   edge_idx <- 1L
 
   for (i in seq_len(nrow(variable_info))) {
+    low_id <- feature_ids[i]
     rt_left <- findInterval(rt_values[i] - rt_tolerance, rt_values, left.open = TRUE) + 1L
     rt_right <- findInterval(rt_values[i] + rt_tolerance, rt_values)
     if (rt_left > rt_right) {
@@ -744,62 +748,114 @@ detect_mass_difference_edges <- function(variable_info,
     }
 
     observed_delta <- variable_info$mz[candidates] - variable_info$mz[i]
-    for (d in seq_len(nrow(dictionary))) {
-      target_delta <- dictionary$mass_difference[d]
-      mz_error_ppm <- abs(observed_delta - target_delta) / target_delta * 1e6
-      hits <- candidates[mz_error_ppm <= ppm]
-      if (length(hits) == 0) {
+    for (d in seq_along(dictionary_mass_difference)) {
+      target_delta <- dictionary_mass_difference[d]
+      if (!is.finite(target_delta) || target_delta <= 0) {
         next
       }
 
-      for (hit in hits) {
-        low_id <- feature_ids[i]
-        high_id <- feature_ids[hit]
-        abundance_cor <- suppressWarnings(stats::cor(
-          expression_data[low_id, ],
-          expression_data[high_id, ],
-          use = "pairwise.complete.obs",
-          method = cor_method
-        ))
-        if (!is.finite(abundance_cor) || abundance_cor < cor_cutoff) {
-          next
-        }
-
-        if (identical(direction, "high_to_low")) {
-          from <- high_id
-          to <- low_id
-        } else {
-          from <- low_id
-          to <- high_id
-        }
-
-        rt_delta <- abs(variable_info$rt[hit] - variable_info$rt[i])
-        confidence <- edge_confidence(
-          mz_error_ppm = mz_error_ppm[match(hit, candidates)],
-          ppm = ppm,
-          rt_diff = rt_delta,
-          rt_tolerance = rt_tolerance,
-          abundance_cor = abundance_cor
-        )
-
-        edges[[edge_idx]] <- data.frame(
-          from = from,
-          to = to,
-          type = type,
-          annotation = dictionary$annotation[d],
-          confidence = confidence,
-          mz_error_ppm = mz_error_ppm[match(hit, candidates)],
-          rt_diff = rt_delta,
-          abundance_cor = abundance_cor,
-          qc_ratio_rsd = NA_real_,
-          stringsAsFactors = FALSE
-        )
-        edge_idx <- edge_idx + 1L
+      mass_window <- target_delta * ppm / 1e6
+      hit_idx <- which(
+        observed_delta >= target_delta - mass_window &
+          observed_delta <= target_delta + mass_window
+      )
+      if (length(hit_idx) == 0) {
+        next
       }
+
+      hits <- candidates[hit_idx]
+      high_ids <- feature_ids[hits]
+      hit_errors <- abs(observed_delta[hit_idx] - target_delta) / target_delta * 1e6
+      abundance_cor <- pairwise_feature_correlations(cor_cache, low_id, high_ids)
+      keep <- is.finite(abundance_cor) & abundance_cor >= cor_cutoff
+      if (!any(keep)) {
+        next
+      }
+
+      hits <- hits[keep]
+      high_ids <- high_ids[keep]
+      hit_errors <- hit_errors[keep]
+      abundance_cor <- abundance_cor[keep]
+
+      if (identical(direction, "high_to_low")) {
+        from <- high_ids
+        to <- rep(low_id, length(high_ids))
+      } else {
+        from <- rep(low_id, length(high_ids))
+        to <- high_ids
+      }
+
+      rt_delta <- abs(variable_info$rt[hits] - variable_info$rt[i])
+      confidence <- edge_confidence(
+        mz_error_ppm = hit_errors,
+        ppm = ppm,
+        rt_diff = rt_delta,
+        rt_tolerance = rt_tolerance,
+        abundance_cor = abundance_cor
+      )
+
+      edges[[edge_idx]] <- data.frame(
+        from = from,
+        to = to,
+        type = type,
+        annotation = dictionary_annotation[d],
+        confidence = confidence,
+        mz_error_ppm = hit_errors,
+        rt_diff = rt_delta,
+        abundance_cor = abundance_cor,
+        qc_ratio_rsd = NA_real_,
+        stringsAsFactors = FALSE
+      )
+      edge_idx <- edge_idx + 1L
     }
   }
 
   normalize_feature_network(do.call(rbind, edges))
+}
+
+build_feature_correlation_cache <- function(expression_data, cor_method) {
+  expression_data <- as.matrix(expression_data)
+  fast_pearson <- identical(cor_method, "pearson") && !anyNA(expression_data)
+  if (!fast_pearson) {
+    return(list(
+      fast_pearson = FALSE,
+      expression_data = expression_data,
+      cor_method = cor_method
+    ))
+  }
+
+  row_centered <- sweep(expression_data, 1, rowMeans(expression_data), "-")
+  row_norm <- sqrt(rowSums(row_centered^2))
+  row_norm[!is.finite(row_norm) | row_norm == 0] <- NA_real_
+  scaled_expression <- sweep(row_centered, 1, row_norm, "/")
+
+  list(
+    fast_pearson = TRUE,
+    scaled_expression = scaled_expression,
+    expression_data = expression_data,
+    cor_method = cor_method
+  )
+}
+
+pairwise_feature_correlations <- function(cor_cache, feature_id, candidate_ids) {
+  if (length(candidate_ids) == 0) {
+    return(numeric())
+  }
+
+  if (isTRUE(cor_cache$fast_pearson)) {
+    source_row <- cor_cache$scaled_expression[feature_id, , drop = FALSE]
+    candidate_rows <- cor_cache$scaled_expression[candidate_ids, , drop = FALSE]
+    return(as.numeric(source_row %*% t(candidate_rows)))
+  }
+
+  vapply(candidate_ids, function(candidate_id) {
+    suppressWarnings(stats::cor(
+      cor_cache$expression_data[feature_id, ],
+      cor_cache$expression_data[candidate_id, ],
+      use = "pairwise.complete.obs",
+      method = cor_cache$cor_method
+    ))
+  }, numeric(1))
 }
 
 edge_confidence <- function(mz_error_ppm, ppm, rt_diff, rt_tolerance, abundance_cor) {
