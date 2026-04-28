@@ -11,7 +11,7 @@
 #' @export
 export_qc_report <- function(object_pos, object_neg, plot_params, file) {
 
-  # 0. 检查参数并设置默认值
+  # 0. Check parameters and set defaults
   if (is.null(plot_params)) {
     plot_params <- list(
       mzrt_hex = TRUE,
@@ -34,7 +34,7 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
     )
   }
 
-  # 1. 检查 Quarto
+  # 1. Check Quarto
   q_path <- NULL
   tryCatch({
     q_path <- quarto::quarto_path()
@@ -59,11 +59,11 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
     stop("Quarto CLI not found. Please install Quarto from https://quarto.org/")
   }
 
-  # 2. 定位模板
-  # 优先检查包内路径
+  # 2. Locate template
+  # Prefer package-internal path
   template_path <- system.file("app/report_template.qmd", package = "MetMiner")
 
-  # 开发环境备选路径
+  # Dev environment fallback paths
   if (template_path == "" || !file.exists(template_path)) {
     dev_paths <- c(
       "inst/app/report_template.qmd",
@@ -83,15 +83,15 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
     stop("Report template not found.")
   }
 
-  # 3. 创建临时工作目录
+  # 3. Create temporary working directory
   work_dir <- tempfile(pattern = "quarto_report_")
   dir.create(work_dir, recursive = TRUE)
 
-  # 复制模板
+  # Copy template
   temp_qmd <- file.path(work_dir, "report.qmd")
   file.copy(template_path, temp_qmd, overwrite = TRUE)
 
-  # 4. 保存数据对象 - 使用 saveRDS 替代 save
+  # 4. Save data objects - use saveRDS instead of save
   if (!is.null(object_pos)) {
     saveRDS(object_pos, file = file.path(work_dir, "object_pos.rds"))
   }
@@ -99,18 +99,18 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
     saveRDS(object_neg, file = file.path(work_dir, "object_neg.rds"))
   }
 
-  # 5. 准备渲染参数
+  # 5. Prepare render parameters
   params_list <- list(
     work_dir = work_dir,
     viz = plot_params
   )
 
-  # 6. 渲染 Quarto 文档
+  # 6. Render Quarto document
   old_wd <- getwd()
-  setwd(work_dir)  # 设置工作目录到临时目录
+  setwd(work_dir)  # Set working directory to temp directory
 
   tryCatch({
-    # 渲染文档
+    # Render document
     quarto::quarto_render(
       input = "report.qmd",
       output_file = "report.html",
@@ -118,14 +118,14 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
       quiet = FALSE
     )
 
-    # 检查输出文件
+    # Check output file
     output_file <- file.path(work_dir, "report.html")
 
     if (!file.exists(output_file)) {
       stop("Quarto output file was not generated.")
     }
 
-    # 7. 复制到目标位置
+    # 7. Copy to target location
     if (!dir.exists(dirname(file))) {
       dir.create(dirname(file), recursive = TRUE, showWarnings = FALSE)
     }
@@ -139,17 +139,17 @@ export_qc_report <- function(object_pos, object_neg, plot_params, file) {
     message("Report generated successfully: ", file)
 
   }, error = function(e) {
-    # 恢复工作目录
+    # Restore working directory
     setwd(old_wd)
-    # 清理
+    # Cleanup
     unlink(work_dir, recursive = TRUE)
     stop("Error generating report: ", e$message)
   })
 
-  # 恢复工作目录
+  # Restore working directory
   setwd(old_wd)
 
-  # 8. 清理（可选，调试时可注释掉）
+  # 8. Cleanup (optional, comment out for debugging)
   unlink(work_dir, recursive = TRUE)
 
   return(invisible(file))

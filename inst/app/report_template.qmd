@@ -24,7 +24,7 @@ editor:
 #| label: setup
 #| include: false
 
-# 修复：移除重复的 {r setup, include=FALSE}，只保留 #| 选项
+# Fix: Remove duplicate {r setup, include=FALSE}, keep only #| options
 knitr::opts_chunk$set(
   echo = FALSE, 
   warning = FALSE, 
@@ -41,11 +41,11 @@ library(dplyr)
 library(plotly)
 
 # --- LOAD DATA FROM PARENT ENVIRONMENT ---
-# 直接从父环境加载对象，避免文件路径问题
+# Load objects directly from parent environment to avoid file path issues
 object_pos <- NULL
 object_neg <- NULL
 
-# 尝试从父环境获取对象
+# Try loading objects from parent environment
 if (!is.null(params$work_dir)) {
   pos_path <- file.path(params$work_dir, "object_pos.rds")
   neg_path <- file.path(params$work_dir, "object_neg.rds")

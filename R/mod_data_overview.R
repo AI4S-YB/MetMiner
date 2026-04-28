@@ -241,7 +241,7 @@ mod_data_overview_server <- function(id, global_data, downloads) {
         paste0("MetMiner_QC_Report_", format(Sys.time(), "%Y%m%d_%H%M"), ".html")
       },
       content = function(file) {
-        # 显示等待模态框
+        # Show waiting modal
         showModal(modalDialog(
           title = "Generating Report",
           div(
@@ -257,12 +257,12 @@ mod_data_overview_server <- function(id, global_data, downloads) {
           size = "m"
         ))
 
-        # 确保模态框关闭
+        # Ensure modal is closed
         on.exit({
           removeModal()
         }, add = TRUE)
 
-        # 准备绘图参数
+        # Prepare plot parameters
         plot_params <- list(
           mzrt_hex    = input$mzrt_hex,
           mv_color    = if (!is.null(input$mv_color)) input$mv_color else "class",
@@ -283,17 +283,17 @@ mod_data_overview_server <- function(id, global_data, downloads) {
           cor_order   = if (!is.null(input$cor_order)) input$cor_order else "no"
         )
 
-        # 获取数据对象 (Strictly Raw for QC)
+        # Get data objects (strictly raw for QC)
         obj_pos <- global_data$object_pos_raw
         obj_neg <- global_data$object_neg_raw
 
-        # 检查是否有数据
+        # Check if data exists
         if(is.null(obj_pos) && is.null(obj_neg)) {
           showNotification("No data available to generate report.", type = "error")
           return(NULL)
         }
 
-        # 生成报告
+        # Generate report
         tryCatch({
           export_qc_report(
             object_pos = obj_pos,
