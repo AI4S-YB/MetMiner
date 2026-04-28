@@ -227,65 +227,26 @@ mod_data_rm_noise_server <- function(id, global_data, prj_init) {
 
     # --- 3. Cleaning Logic Pipeline ---
     do_cleaning_pipeline <- function(object, tag, qc_na_freq, s_na_freq, do_rsd, rsd_cut, polarity_name) {
-      if(is.null(object)) return(NULL)
+      if (is.null(object)) return(NULL)
 
-      # 1. Metadata
-      sample_info <- massdataset::extract_sample_info(object)
-      if(tag == "class") {
-        group_vector <- sample_info$class
-      } else {
-        if(!tag %in% colnames(sample_info)) stop(paste("Column", tag, "not found"))
-        group_vector <- ifelse(sample_info$class == "QC", "QC", as.character(sample_info[[tag]]))
-      }
-      unique_groups <- unique(group_vector)
-      expression_data <- massdataset::extract_expression_data(object)
+      result <- find_noise_multiple(
+        object      = object,
+        tag         = tag,
+        qc_na_freq  = qc_na_freq,
+        S_na_freq   = s_na_freq,
+        do_rsd      = do_rsd,
+        rsd_cutoff  = rsd_cut
+      )
 
-      # 2. MV Filtering
-      # A. QC Check
-      qc_idx <- which(group_vector == "QC")
-      if(length(qc_idx) > 0) {
-        qc_na_ratios <- rowMeans(is.na(expression_data[, qc_idx, drop=FALSE]))
-      } else {
-        qc_na_ratios <- rep(0, nrow(expression_data))
-      }
-
-      # B. Group Check
-      non_qc_groups <- setdiff(unique_groups, "QC")
-      if(length(non_qc_groups) > 0) {
-        group_pass_list <- lapply(non_qc_groups, function(grp) {
-          g_idx <- which(group_vector == grp)
-          if(length(g_idx) == 0) return(rep(FALSE, nrow(expression_data)))
-          g_na_ratios <- rowMeans(is.na(expression_data[, g_idx, drop=FALSE]))
-          return(g_na_ratios <= s_na_freq)
-        })
-        any_group_pass <- Reduce(`|`, group_pass_list)
-      } else {
-        any_group_pass <- rep(TRUE, nrow(expression_data))
-      }
-
-      keep_mv <- (qc_na_ratios <= qc_na_freq) & any_group_pass
-      keep_mv[is.na(keep_mv)] <- FALSE
-
-      keep_indices <- which(unname(keep_mv))
-      if(length(keep_indices) == 0) {
-        showNotification(paste("Warning:", polarity_name, "mode: No features kept after MV filter."), type="warning")
+      if (is.null(result)) {
+        showNotification(
+          paste("Warning:", polarity_name, "mode: No features kept after MV filter."),
+          type = "warning"
+        )
         return(NULL)
       }
-      object_filtered <- object[keep_indices, ]
 
-      # 3. RSD Filtering (Using massdataset::mutate_rsd)
-      if(do_rsd) {
-        s_info_curr <- massdataset::extract_sample_info(object_filtered)
-        qc_ids <- s_info_curr %>% dplyr::filter(class == "QC") %>% dplyr::pull(sample_id)
-
-        if(length(qc_ids) > 1) {
-          object_filtered <- massdataset::mutate_rsd(object_filtered, according_to_samples = qc_ids)
-          object_filtered <- object_filtered %>%
-            massdataset::activate_mass_dataset(what = "variable_info") %>%
-            dplyr::filter(rsd < rsd_cut)
-        }
-      }
-      return(object_filtered)
+      return(result)
     }
 
     # --- 4. Execution ---
@@ -319,33 +280,31 @@ mod_data_rm_noise_server <- function(id, global_data, prj_init) {
         do_rsd <- input$rm_noise_rsd
         rsd_cut <- input$qc_rsd
 
-        # Positive
-        if(!is.null(pos_raw)){
-          progress$inc(0.2, detail = "Processing Positive Mode...")
-          pos_clean <- do_cleaning_pipeline(pos_raw, tag, qc_cut, s_cut, do_rsd, rsd_cut, "Positive")
-          global_data$object_pos_clean <- pos_clean
+        # Process each polarity mode
+        polarities <- list(
+          list(name = "positive", raw = pos_raw,
+               global_key = "object_pos_clean", noise_key = "pos_count",
+               save_var = "object_pos_mv",
+               save_file = "02.object_pos_mv.rda"),
+          list(name = "negative", raw = neg_raw,
+               global_key = "object_neg_clean", noise_key = "neg_count",
+               save_var = "object_neg_mv",
+               save_file = "02.object_neg_mv.rda")
+        )
 
-          if(!is.null(pos_clean)) {
-            noise_info$pos_count <- nrow(pos_raw) - nrow(pos_clean)
+        for (p in polarities) {
+          if (!is.null(p$raw)) {
+            progress$inc(if (p$name == "positive") 0.2 else 0.4,
+                         detail = paste("Processing", p$name, "Mode..."))
+            clean_obj <- do_cleaning_pipeline(p$raw, tag, qc_cut, s_cut, do_rsd, rsd_cut, p$name)
+            global_data[[p$global_key]] <- clean_obj
 
-            # Save Object (02.object_pos_mv.rda)
-            object_pos_mv <- pos_clean
-            save(object_pos_mv, file = file.path(prj_init$mass_dataset_dir, "02.object_pos_mv.rda"))
-          }
-        }
-
-        # Negative
-        if(!is.null(neg_raw)){
-          progress$inc(0.4, detail = "Processing Negative Mode...")
-          neg_clean <- do_cleaning_pipeline(neg_raw, tag, qc_cut, s_cut, do_rsd, rsd_cut, "Negative")
-          global_data$object_neg_clean <- neg_clean
-
-          if(!is.null(neg_clean)) {
-            noise_info$neg_count <- nrow(neg_raw) - nrow(neg_clean)
-
-            # Save Object (02.object_neg_mv.rda)
-            object_neg_mv <- neg_clean
-            save(object_neg_mv, file = file.path(prj_init$mass_dataset_dir, "02.object_neg_mv.rda"))
+            if (!is.null(clean_obj)) {
+              noise_info[[p$noise_key]] <- nrow(p$raw) - nrow(clean_obj)
+              assign(p$save_var, clean_obj)
+              save(list = p$save_var,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file))
+            }
           }
         }
 

@@ -124,40 +124,10 @@ mod_feature_network_server <- function(id, global_data, prj_init) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    show_progress_modal <- function(title = "Processing...", message = "Please wait...", value = 0) {
-      showModal(modalDialog(
-        title = div(tags$span(class = "spinner-border spinner-border-sm text-primary", role = "status"), " ", title),
-        div(class = "modal-progress-text", id = ns("progress_message"), message),
-        div(
-          class = "progress",
-          style = "height: 20px;",
-          div(
-            id = ns("progress_bar"),
-            class = "progress-bar progress-bar-striped progress-bar-animated bg-success",
-            role = "progressbar",
-            style = paste0("width: ", value, "%;"),
-            `aria-valuenow` = value,
-            `aria-valuemin` = "0",
-            `aria-valuemax` = "100",
-            paste0(value, "%")
-          )
-        ),
-        footer = NULL,
-        easyClose = FALSE,
-        size = "m"
-      ))
-    }
-
-    update_progress_modal <- function(value, message = NULL) {
-      shinyjs::runjs(sprintf("$('#%s').css('width', '%s%%').text('%s%%');", ns("progress_bar"), value, value))
-      if (!is.null(message)) {
-        shinyjs::runjs(sprintf("$('#%s').text('%s');", ns("progress_message"), message))
-      }
-    }
-
-    close_progress_modal <- function() {
-      removeModal()
-    }
+    progress_handlers <- create_progress_handlers(ns)
+    show_progress_modal   <- progress_handlers$show_progress_modal
+    update_progress_modal <- progress_handlers$update_progress_modal
+    close_progress_modal  <- progress_handlers$close_progress_modal
 
     get_input_obj <- function(mode) {
       if (identical(mode, "positive")) {
@@ -279,27 +249,37 @@ mod_feature_network_server <- function(id, global_data, prj_init) {
       show_progress_modal("Building Feature Network", "Preparing feature data...", 0)
 
       tryCatch({
-        if (!is.null(pos_in)) {
-          res_pos <- build_one_mode(pos_in, "positive", 20, "Positive Mode")
-          global_data$object_pos_network <- res_pos$object
-          global_data$pseudo_area_pos <- res_pos$pseudo
-          if (!is.null(prj_init$mass_dataset_dir)) {
-            object_pos_network <- res_pos$object
-            pseudo_area_pos <- res_pos$pseudo
-            save(object_pos_network, file = file.path(prj_init$mass_dataset_dir, "06.object_pos_feature_network.rda"))
-            save(pseudo_area_pos, file = file.path(prj_init$mass_dataset_dir, "06.pseudo_area_pos.rda"))
-          }
-        }
+        polarities <- list(
+          list(name = "positive", obj = pos_in,
+               progress_value = 20, progress_label = "Positive Mode",
+               global_key = "object_pos_network", pseudo_key = "pseudo_area_pos",
+               save_var_net = "object_pos_network",
+               save_file_net = "06.object_pos_feature_network.rda",
+               save_var_pseudo = "pseudo_area_pos",
+               save_file_pseudo = "06.pseudo_area_pos.rda"),
+          list(name = "negative", obj = neg_in,
+               progress_value = 55, progress_label = "Negative Mode",
+               global_key = "object_neg_network", pseudo_key = "pseudo_area_neg",
+               save_var_net = "object_neg_network",
+               save_file_net = "06.object_neg_feature_network.rda",
+               save_var_pseudo = "pseudo_area_neg",
+               save_file_pseudo = "06.pseudo_area_neg.rda")
+        )
 
-        if (!is.null(neg_in)) {
-          res_neg <- build_one_mode(neg_in, "negative", 55, "Negative Mode")
-          global_data$object_neg_network <- res_neg$object
-          global_data$pseudo_area_neg <- res_neg$pseudo
-          if (!is.null(prj_init$mass_dataset_dir)) {
-            object_neg_network <- res_neg$object
-            pseudo_area_neg <- res_neg$pseudo
-            save(object_neg_network, file = file.path(prj_init$mass_dataset_dir, "06.object_neg_feature_network.rda"))
-            save(pseudo_area_neg, file = file.path(prj_init$mass_dataset_dir, "06.pseudo_area_neg.rda"))
+        for (p in polarities) {
+          if (!is.null(p$obj)) {
+            res <- build_one_mode(p$obj, p$name, p$progress_value, p$progress_label)
+            global_data[[p$global_key]] <- res$object
+            global_data[[p$pseudo_key]] <- res$pseudo
+
+            if (!is.null(prj_init$mass_dataset_dir)) {
+              assign(p$save_var_net, res$object)
+              save(list = p$save_var_net,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file_net))
+              assign(p$save_var_pseudo, res$pseudo)
+              save(list = p$save_var_pseudo,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file_pseudo))
+            }
           }
         }
 

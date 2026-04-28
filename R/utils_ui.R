@@ -126,3 +126,48 @@ metminer_footer <- function() {
     )
   )
 }
+
+#' Progress Modal Handlers Factory
+#'
+#' Creates show/update/close functions for a modal progress dialog
+#' inside a Shiny module server function.
+#'
+#' @param ns A namespace function (typically `session$ns`).
+#' @return A list with `show_progress_modal`, `update_progress_modal`,
+#'   and `close_progress_modal` functions.
+#' @noRd
+create_progress_handlers <- function(ns) {
+
+  show_progress_modal <- function(title = "Processing...", message = "Please wait...", value = 0) {
+    shiny::showModal(shiny::modalDialog(
+      title = shiny::div(shiny::tags$span(
+        class = "spinner-border spinner-border-sm text-primary",
+        role = "status"), " ", title),
+      shiny::div(class = "modal-progress-text", id = ns("progress_message"), message),
+      shiny::div(class = "progress", style = "height: 20px;",
+        shiny::div(id = ns("progress_bar"),
+          class = "progress-bar progress-bar-striped progress-bar-animated bg-success",
+          role = "progressbar", style = paste0("width: ", value, "%;"),
+          `aria-valuenow` = value, `aria-valuemin` = "0", `aria-valuemax` = "100",
+          paste0(value, "%"))
+      ),
+      footer = NULL, easyClose = FALSE, size = "m"
+    ))
+  }
+
+  update_progress_modal <- function(value, message = NULL) {
+    shinyjs::runjs(sprintf("$('#%s').css('width', '%s%%').text('%s%%');",
+                           ns("progress_bar"), value, value))
+    if (!is.null(message)) {
+      shinyjs::runjs(sprintf("$('#%s').text('%s');", ns("progress_message"), message))
+    }
+  }
+
+  close_progress_modal <- function() { shiny::removeModal() }
+
+  list(
+    show_progress_modal   = show_progress_modal,
+    update_progress_modal = update_progress_modal,
+    close_progress_modal  = close_progress_modal
+  )
+}

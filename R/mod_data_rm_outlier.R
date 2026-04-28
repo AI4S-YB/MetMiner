@@ -275,58 +275,44 @@ mod_data_outlier_server <- function(id, global_data, prj_init) {
       on.exit(shinyjs::enable("run_outlier"))
 
       tryCatch({
-        # --- Positive Mode ---
-        if(!is.null(obj_pos)) {
-          # calc_outlier_table is now sourced from fct_data_outlier.R
-          outlier_tbl_pos <- calc_outlier_table(obj_pos, input$th_na, input$th_sd, input$th_mad, input$th_dist)
+        polarities <- list(
+          list(name = "positive", obj = obj_pos,
+               global_key = "object_pos_outlier", outlier_key = "pos_removed",
+               manual_input = "manual_pos",
+               save_var = "object_pos_outlier",
+               save_file = "03.object_pos_outlier.rda"),
+          list(name = "negative", obj = obj_neg,
+               global_key = "object_neg_outlier", outlier_key = "neg_removed",
+               manual_input = "manual_neg",
+               save_var = "object_neg_outlier",
+               save_file = "03.object_neg_outlier.rda")
+        )
 
-          # process_outliers is now sourced from fct_data_outlier.R
-          res_pos <- process_outliers(
-            object = obj_pos,
-            mv_method = input$outlier_method,
-            by_witch = input$auto_criteria,
-            outlier_samples = input$manual_pos,
-            outlier_table = outlier_tbl_pos
-          )
+        for (p in polarities) {
+          if (!is.null(p$obj)) {
+            outlier_tbl <- calc_outlier_table(p$obj, input$th_na, input$th_sd, input$th_mad, input$th_dist)
+            res <- process_outliers(
+              object = p$obj,
+              mv_method = input$outlier_method,
+              by_witch = input$auto_criteria,
+              outlier_samples = input[[p$manual_input]],
+              outlier_table = outlier_tbl
+            )
 
-          if(!is.null(res_pos$error)) stop(res_pos$error)
+            if (!is.null(res$error)) stop(res$error)
 
-          global_data$object_pos_outlier <- res_pos$object
-          outlier_info$pos_removed <- res_pos$outlier_ids # Store IDs
+            global_data[[p$global_key]] <- res$object
+            outlier_info[[p$outlier_key]] <- res$outlier_ids
 
-          # Save Object (03.object_pos_outlier.rda)
-          if(!is.null(res_pos$object)) {
-            object_pos_outlier <- res_pos$object
-            save(object_pos_outlier, file = file.path(prj_init$mass_dataset_dir, "03.object_pos_outlier.rda"))
+            if (!is.null(res$object)) {
+              assign(p$save_var, res$object)
+              save(list = p$save_var,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file))
+            }
+
+            showNotification(paste(p$name, ":", res$message),
+                             type = if (is.null(res$outlier_ids)) "message" else "warning")
           }
-
-          showNotification(paste("Positive:", res_pos$message), type = if(is.null(res_pos$outlier_ids)) "message" else "warning")
-        }
-
-        # --- Negative Mode ---
-        if(!is.null(obj_neg)) {
-          outlier_tbl_neg <- calc_outlier_table(obj_neg, input$th_na, input$th_sd, input$th_mad, input$th_dist)
-
-          res_neg <- process_outliers(
-            object = obj_neg,
-            mv_method = input$outlier_method,
-            by_witch = input$auto_criteria,
-            outlier_samples = input$manual_neg,
-            outlier_table = outlier_tbl_neg
-          )
-
-          if(!is.null(res_neg$error)) stop(res_neg$error)
-
-          global_data$object_neg_outlier <- res_neg$object
-          outlier_info$neg_removed <- res_neg$outlier_ids # Store IDs
-
-          # Save Object (03.object_neg_outlier.rda)
-          if(!is.null(res_neg$object)) {
-            object_neg_outlier <- res_neg$object
-            save(object_neg_outlier, file = file.path(prj_init$mass_dataset_dir, "03.object_neg_outlier.rda"))
-          }
-
-          showNotification(paste("Negative:", res_neg$message), type = if(is.null(res_neg$outlier_ids)) "message" else "warning")
         }
 
       }, error = function(e) {

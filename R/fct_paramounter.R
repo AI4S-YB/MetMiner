@@ -1,3 +1,42 @@
+#' Internal: Setup files and parallel plan for paramounter
+#'
+#' @param directory The data path for mzXML files.
+#' @param filenum Number of files to use (3, 5, or "all").
+#' @param thread Number of threads for parallel processing.
+#' @return A list with `files` (character vector of selected file paths) and
+#'   `n_chunks` (integer for chunking).
+#' @noRd
+.paramounter_setup <- function(directory, filenum, thread) {
+  files <- list.files(path = directory, pattern = "\\.mzXML$", full.names = TRUE, ignore.case = TRUE)
+  if (length(files) == 0) stop("No .mzXML files found in directory")
+
+  n_files <- length(files)
+  if (identical(filenum, "all") || (is.character(filenum) && filenum == "all")) {
+    file_idxs <- 1:n_files
+  } else {
+    num <- as.numeric(filenum[1])
+    if (n_files <= num) {
+      file_idxs <- 1:n_files
+    } else {
+      file_idxs <- unique(round(seq(1, n_files, length.out = num)))
+    }
+  }
+  selected_files <- files[file_idxs]
+
+  if (thread > 1) {
+    if (.Platform$OS.type == "unix") {
+      future::plan(future::multicore, workers = thread)
+    } else {
+      future::plan(future::multisession, workers = thread)
+    }
+  } else {
+    future::plan(future::sequential)
+  }
+
+  n_chunks <- if (thread > 1) thread * 10 else 1
+  list(files = selected_files, n_chunks = n_chunks)
+}
+
 #' Paramounter part1 (Optimized)
 #'
 #' Optimize XCMS parameters (detect PPM cutoff) using a binned EIC approach.
@@ -20,36 +59,11 @@
 #' @export
 paramounter_part1 <- function(directory, massSDrange = 2, smooth = 0, cutoff = 0.95, thread = 1, filenum = c(3, 5, "all")) {
 
-  # 1. File Selection
-  files <- list.files(path = directory, pattern = "\\.mzXML$", full.names = TRUE, ignore.case = TRUE)
-  if (length(files) == 0) stop("No .mzXML files found in directory")
+  setup <- .paramounter_setup(directory, filenum, thread)
+  selected_files <- setup$files
+  n_chunks <- setup$n_chunks
 
-  n_files <- length(files)
-  if (identical(filenum, "all") || (is.character(filenum) && filenum == "all")) {
-    file_idxs <- 1:n_files
-  } else {
-    num <- as.numeric(filenum[1])
-    if (n_files <= num) {
-      file_idxs <- 1:n_files
-    } else {
-      file_idxs <- unique(round(seq(1, n_files, length.out = num)))
-    }
-  }
-  selected_files <- files[file_idxs]
-
-  # 2. Parallel Plan
-  # Use multisession for stability across platforms in Shiny
-  if (thread > 1) {
-    if (.Platform$OS.type == "unix") {
-      future::plan(future::multicore, workers = thread)
-    } else {
-      future::plan(future::multisession, workers = thread)
-    }
-  } else {
-    future::plan(future::sequential)
-  }
-
-  # 3. Process Files
+  # Process Files
   ppm2D <- do.call(rbind, lapply(selected_files, function(f) {
 
     # Read Data
@@ -73,9 +87,14 @@ paramounter_part1 <- function(directory, massSDrange = 2, smooth = 0, cutoff = 0
     bin_indices <- split(seq_along(all_mz), bins)
     bin_names <- names(bin_indices)
 
-    # Chunking
-    n_chunks <- if(thread > 1) thread * 10 else 1
-    chunks <- split(bin_names, cut(seq_along(bin_names), breaks = min(length(bin_names), n_chunks), labels = FALSE))
+    # Chunking — cut(breaks = n) requires n >= 2
+    n_cuts <- min(length(bin_names), n_chunks)
+    if (n_cuts <= 1) {
+      chunks <- list(bin_names)
+    } else {
+      chunks <- split(bin_names, cut(seq_along(bin_names),
+                      breaks = n_cuts, labels = FALSE))
+    }
 
     # Parallel Processing with Package Export
     res_df <- furrr::future_map_dfr(chunks, function(chunk_bins) {
@@ -198,23 +217,9 @@ paramounter_part1 <- function(directory, massSDrange = 2, smooth = 0, cutoff = 0
 paramounter_part2 <- function(directory, massSDrange = 2, smooth = 0, cutoff = 0.95,
                               filenum = c(3, 5, "all"), thread = 1, ppmCut) {
 
-  files <- list.files(path = directory, pattern = "\\.mzXML$", full.names = TRUE, ignore.case = TRUE)
-  n_files <- length(files)
-
-  if (identical(filenum, "all") || (is.character(filenum) && filenum == "all")) {
-    file_idxs <- 1:n_files
-  } else {
-    num <- as.numeric(filenum[1])
-    file_idxs <- if(n_files <= num) 1:n_files else unique(round(seq(1, n_files, length.out = num)))
-  }
-  selected_files <- files[file_idxs]
-
-  if (thread > 1) {
-    if (.Platform$OS.type == "unix") future::plan(future::multicore, workers = thread)
-    else future::plan(future::multisession, workers = thread)
-  } else {
-    future::plan(future::sequential)
-  }
+  setup <- .paramounter_setup(directory, filenum, thread)
+  selected_files <- setup$files
+  n_chunks <- setup$n_chunks
 
   all_results <- do.call(rbind, lapply(selected_files, function(f) {
     msd <- MSnbase::readMSData(f, mode = "onDisk", msLevel. = 1)
@@ -233,8 +238,13 @@ paramounter_part2 <- function(directory, massSDrange = 2, smooth = 0, cutoff = 0
     bin_indices <- split(seq_along(all_mz), bins)
     bin_names <- names(bin_indices)
 
-    n_chunks <- if(thread > 1) thread * 10 else 1
-    chunks <- split(bin_names, cut(seq_along(bin_names), breaks = min(length(bin_names), n_chunks), labels = FALSE))
+    n_cuts <- min(length(bin_names), n_chunks)
+    if (n_cuts <= 1) {
+      chunks <- list(bin_names)
+    } else {
+      chunks <- split(bin_names, cut(seq_along(bin_names),
+                      breaks = n_cuts, labels = FALSE))
+    }
 
     furrr::future_map_dfr(chunks, function(chunk_bins) {
       tryCatch({

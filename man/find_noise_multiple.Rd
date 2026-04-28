@@ -4,21 +4,33 @@
 \alias{find_noise_multiple}
 \title{Find and Remove Noise}
 \usage{
-find_noise_multiple(object, tag = "class", qc_na_freq = 0.2, S_na_freq = 0.5)
+find_noise_multiple(
+  object,
+  tag = "class",
+  qc_na_freq = 0.2,
+  S_na_freq = 0.5,
+  do_rsd = FALSE,
+  rsd_cutoff = 30
+)
 }
 \arguments{
-\item{object}{a mass_dataset class}
+\item{object}{A mass_dataset class object.}
 
-\item{tag}{Remove noise based on column names of `sample_info` in object}
+\item{tag}{Column name in sample_info used for grouping (default "class").}
 
-\item{qc_na_freq}{missing value ratio of QC sample (threshold)}
+\item{qc_na_freq}{Missing value ratio threshold for QC samples.}
 
-\item{S_na_freq}{missing value ratio of tag groups (threshold)}
+\item{S_na_freq}{Missing value ratio threshold for sample groups.}
+
+\item{do_rsd}{Whether to apply RSD-based filtering after MV filtering.}
+
+\item{rsd_cutoff}{RSD threshold (%) for QC samples (only used if do_rsd = TRUE).}
 }
 \value{
-A list containing `object_mv` (cleaned object) and `noisy_tbl` (removed features info).
+A cleaned mass_dataset object, or NULL if no features survive filtering.
 }
 \description{
-Detected errors or batch effects of your untargeted metabolomics data.
-Based on missing value frequency in QC and Sample groups.
+Detects errors or batch effects in untargeted metabolomics data
+based on missing value frequency in QC and sample groups,
+with optional RSD-based filtering.
 }

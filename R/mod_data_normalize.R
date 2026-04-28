@@ -249,29 +249,10 @@ mod_data_norm_server <- function(id, global_data, prj_init) {
   moduleServer(id, function(input, output, session) {
     ns <- session$ns
 
-    # --- 0. Helpers: Modal Progress ---
-    show_progress_modal <- function(title = "Processing...", message = "Please wait...", value = 0) {
-      showModal(modalDialog(
-        title = div(tags$span(class="spinner-border spinner-border-sm text-primary", role="status"), " ", title),
-        div(class = "modal-progress-text", id = ns("progress_message"), message),
-        div(class = "progress", style = "height: 20px;",
-            div(id = ns("progress_bar"), class = "progress-bar progress-bar-striped progress-bar-animated bg-success",
-                role = "progressbar", style = paste0("width: ", value, "%;"),
-                `aria-valuenow` = value, `aria-valuemin` = "0", `aria-valuemax` = "100",
-                paste0(value, "%"))
-        ),
-        footer = NULL, easyClose = FALSE, size = "m"
-      ))
-    }
-
-    update_progress_modal <- function(value, message = NULL) {
-      shinyjs::runjs(sprintf("$('#%s').css('width', '%s%%').text('%s%%');", ns("progress_bar"), value, value))
-      if (!is.null(message)) {
-        shinyjs::runjs(sprintf("$('#%s').text('%s');", ns("progress_message"), message))
-      }
-    }
-
-    close_progress_modal <- function() { removeModal() }
+    progress_handlers <- create_progress_handlers(ns)
+    show_progress_modal   <- progress_handlers$show_progress_modal
+    update_progress_modal <- progress_handlers$update_progress_modal
+    close_progress_modal  <- progress_handlers$close_progress_modal
 
     # --- 1. Input Helpers (Resuming Logic) ---
     get_input_obj <- function(mode) {
@@ -376,29 +357,30 @@ mod_data_norm_server <- function(id, global_data, prj_init) {
           n_args$pqn_reference <- input$pqn_ref
         }
 
-        # --- Positive ---
-        if(!is.null(pos_in)) {
-          update_progress_modal(30, "Processing Positive Mode...")
-          res_pos <- process_norm_integ(pos_in, input$norm_method, input$integ_method, n_args)
-          global_data$object_pos_norm <- res_pos$result
+        polarities <- list(
+          list(name = "positive", obj = pos_in,
+               global_key = "object_pos_norm",
+               save_var = "object_pos_norm",
+               save_file = "05.object_pos_norm.rda",
+               progress_val = 30),
+          list(name = "negative", obj = neg_in,
+               global_key = "object_neg_norm",
+               save_var = "object_neg_norm",
+               save_file = "05.object_neg_norm.rda",
+               progress_val = 60)
+        )
 
-          # Save
-          if(!is.null(prj_init$mass_dataset_dir)) {
-            object_pos_norm <- res_pos$result
-            save(object_pos_norm, file = file.path(prj_init$mass_dataset_dir, "05.object_pos_norm.rda"))
-          }
-        }
+        for (p in polarities) {
+          if (!is.null(p$obj)) {
+            update_progress_modal(p$progress_val, paste("Processing", p$name, "Mode..."))
+            res <- process_norm_integ(p$obj, input$norm_method, input$integ_method, n_args)
+            global_data[[p$global_key]] <- res$result
 
-        # --- Negative ---
-        if(!is.null(neg_in)) {
-          update_progress_modal(60, "Processing Negative Mode...")
-          res_neg <- process_norm_integ(neg_in, input$norm_method, input$integ_method, n_args)
-          global_data$object_neg_norm <- res_neg$result
-
-          # Save
-          if(!is.null(prj_init$mass_dataset_dir)) {
-            object_neg_norm <- res_neg$result
-            save(object_neg_norm, file = file.path(prj_init$mass_dataset_dir, "05.object_neg_norm.rda"))
+            if (!is.null(prj_init$mass_dataset_dir)) {
+              assign(p$save_var, res$result)
+              save(list = p$save_var,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file))
+            }
           }
         }
 

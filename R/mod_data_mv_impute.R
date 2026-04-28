@@ -220,34 +220,31 @@ mod_data_impute_server <- function(id, global_data, prj_init) {
           args_list <- c(args_list, list(nPcs = input$pca_nPcs))
         }
 
-        # --- Positive Mode ---
-        if(!is.null(pos_obj)) {
-          progress$inc(0.3, detail = "Processing Positive Mode...")
-          # Call do.call to pass list of arguments
-          args_pos <- c(list(object = pos_obj), args_list)
-          pos_imputed <- do.call(masscleaner::impute_mv, args_pos)
+        polarities <- list(
+          list(name = "positive", obj = pos_obj,
+               global_key = "object_pos_impute",
+               save_var = "object_pos_impute",
+               save_file = "04.object_pos_impute.rda"),
+          list(name = "negative", obj = neg_obj,
+               global_key = "object_neg_impute",
+               save_var = "object_neg_impute",
+               save_file = "04.object_neg_impute.rda")
+        )
 
-          global_data$object_pos_impute <- pos_imputed
+        for (p in polarities) {
+          if (!is.null(p$obj)) {
+            progress$inc(if (p$name == "positive") 0.3 else 0.4,
+                         detail = paste("Processing", p$name, "Mode..."))
+            args_mode <- c(list(object = p$obj), args_list)
+            imputed <- do.call(masscleaner::impute_mv, args_mode)
 
-          # Save Result
-          if(!is.null(prj_init$mass_dataset_dir)) {
-            object_pos_impute <- pos_imputed
-            save(object_pos_impute, file = file.path(prj_init$mass_dataset_dir, "04.object_pos_impute.rda"))
-          }
-        }
+            global_data[[p$global_key]] <- imputed
 
-        # --- Negative Mode ---
-        if(!is.null(neg_obj)) {
-          progress$inc(0.4, detail = "Processing Negative Mode...")
-          args_neg <- c(list(object = neg_obj), args_list)
-          neg_imputed <- do.call(masscleaner::impute_mv, args_neg)
-
-          global_data$object_neg_impute <- neg_imputed
-
-          # Save Result
-          if(!is.null(prj_init$mass_dataset_dir)) {
-            object_neg_impute <- neg_imputed
-            save(object_neg_impute, file = file.path(prj_init$mass_dataset_dir, "04.object_neg_impute.rda"))
+            if (!is.null(prj_init$mass_dataset_dir)) {
+              assign(p$save_var, imputed)
+              save(list = p$save_var,
+                   file = file.path(prj_init$mass_dataset_dir, p$save_file))
+            }
           }
         }
 

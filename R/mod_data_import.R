@@ -297,29 +297,10 @@ mod_data_import_server <- function(id, prj_init, global_data, logger = NULL) {
     shinyjs::hide("opt_ui_wrapper")
     shinyjs::hide("execution_ui_wrapper")
 
-    # --- Helper: Modal Progress ---
-    show_progress_modal <- function(title = "Processing...", message = "Please wait...", value = 0) {
-      showModal(modalDialog(
-        title = div(tags$span(class="spinner-border spinner-border-sm text-primary", role="status"), " ", title),
-        div(class = "modal-progress-text", id = ns("progress_message"), message),
-        div(class = "progress", style = "height: 20px;",
-            div(id = ns("progress_bar"), class = "progress-bar progress-bar-striped progress-bar-animated bg-success",
-                role = "progressbar", style = paste0("width: ", value, "%;"),
-                `aria-valuenow` = value, `aria-valuemin` = "0", `aria-valuemax` = "100",
-                paste0(value, "%"))
-        ),
-        footer = NULL, easyClose = FALSE, size = "m"
-      ))
-    }
-
-    update_progress_modal <- function(value, message = NULL) {
-      shinyjs::runjs(sprintf("$('#%s').css('width', '%s%%').text('%s%%');", ns("progress_bar"), value, value))
-      if (!is.null(message)) {
-        shinyjs::runjs(sprintf("$('#%s').text('%s');", ns("progress_message"), message))
-      }
-    }
-
-    close_progress_modal <- function() { removeModal() }
+    progress_handlers <- create_progress_handlers(ns)
+    show_progress_modal   <- progress_handlers$show_progress_modal
+    update_progress_modal <- progress_handlers$update_progress_modal
+    close_progress_modal  <- progress_handlers$close_progress_modal
 
     # ==========================================================================
     # 1. RAW DATA LOGIC
